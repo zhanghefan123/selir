@@ -14,10 +14,14 @@ selir-objs := \
 	src/api/ftrace_hook_api.o \
 	src/api/hook_functions_api.o \
 	src/api/check_srv6.o \
-	src/api/bloom_filter.o \
 	src/api/test.o \
 	src/api/netlink_router.o \
 	src/api/netlink_handler.o \
+	src/structure/namespace.o \
+	src/structure/crypto_structure.o \
+	src/structure/bloom_filter.o \
+	src/structure/path_validation_structure.o \
+	src/structure/source_routing_table_entry.o \
 	src/hooks/ipv6_rcv/hook.o \
 	src/hooks/ipv6_rcv/impl.o \
 	src/hooks/ipv6_rcv_finish/impl.o \

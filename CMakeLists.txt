@@ -19,10 +19,14 @@ add_executable(lkm
         src/api/ftrace_hook_api.c
         src/api/hook_functions_api.c
         src/api/check_srv6.c
-        src/api/bloom_filter.c
         src/api/test.c
         src/api/netlink_router.c
         src/api/netlink_handler.c
+        src/structure/namespace.c
+        src/structure/crypto_structure.c
+        src/structure/bloom_filter.c
+        src/structure/path_validation_structure.c
+        src/structure/source_routing_table_entry.c
         src/hooks/ipv6_rcv/hook.c
         src/hooks/ipv6_rcv/impl.c
         src/hooks/ipv6_rcv_finish/impl.c

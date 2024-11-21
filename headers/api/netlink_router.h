@@ -28,6 +28,8 @@ enum {
 enum {
     CMD_UNSPEC,
     CMD_ECHO, // 1. 用来进行消息回显的
+    CMD_INIT_ROUTING_AND_FORWARDING_TABLE, // 2. 初始化路由表和接口表
+    CMD_INIT_BLOOM_FILTER, // 3. 初始化布隆过滤器
 };
 
 #define VERSION_NR 1

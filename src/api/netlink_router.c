@@ -36,8 +36,18 @@ const struct genl_ops exmpl_gnl_ops_echo[] = {
          {
                  .cmd = CMD_ECHO,
                  .policy = attr_type_mapping,
-                 .doit = netlink_test_handler,
+                 .doit = netlink_echo_handler,
          },
+         {
+                .cmd = CMD_INIT_ROUTING_AND_FORWARDING_TABLE,
+                .policy = attr_type_mapping,
+                .doit = netlink_init_routing_and_forwarding_table_handler,
+         },
+         {
+                .cmd = CMD_INIT_BLOOM_FILTER,
+                .policy = attr_type_mapping,
+                .doit = netlink_init_bloom_filter_handler,
+         }
 };
 
 /**

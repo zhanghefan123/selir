@@ -6,5 +6,9 @@
 #define LOADABLE_KERNEL_MODULE_NETLINK_HANDLER_H
 #include <net/sock.h>
 #include <net/genetlink.h>
-int netlink_test_handler(struct sk_buff* request, struct genl_info* info);
+char* recv_message(struct genl_info* info);
+int send_reply(char* response_buffer, struct genl_info* info);
+int netlink_echo_handler(struct sk_buff* request, struct genl_info* info);
+int netlink_init_routing_and_forwarding_table_handler(struct sk_buff* request, struct genl_info* info);
+int netlink_init_bloom_filter_handler(struct sk_buff* request, struct genl_info* info);
 #endif //LOADABLE_KERNEL_MODULE_NETLINK_HANDLER_H
