@@ -1,0 +1,4 @@
+.idea/
+cmake-build-debug-remote-host/
+*.o
+*.o.cmd
