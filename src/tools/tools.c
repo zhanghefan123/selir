@@ -109,3 +109,17 @@ void printk_binary_u8(u8 n){
     }
     printk(KERN_EMERG "\n");
 }
+
+
+/**
+ * 打印 hash 或者 hmac 的输出
+ * @param output 输出的内容
+ * @param length 输出的长度
+ */
+void print_hash_or_hmac_result(unsigned char* output, int length){
+    int i;
+    printk(KERN_CONT "RESULT ");
+    for (i = 0; i < length; i++)
+        printk(KERN_CONT "%02x", output[i]);
+    printk(KERN_CONT "\n");
+}
