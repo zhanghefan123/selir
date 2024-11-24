@@ -13,6 +13,8 @@ struct PathValidationStructure {
     int routing_table_type;
     // 基于数组的路由表
     struct ArrayBasedRoutingTable* abrt;
+    // 基于哈希的路由表
+    struct HashBasedRoutingTable* hbrt;
     // 基于数组的接口表
     struct ArrayBasedInterfaceTable* abit;
     // 布隆过滤器

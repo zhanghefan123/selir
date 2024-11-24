@@ -36,6 +36,7 @@ void initialize_routing_and_forwarding_table(struct PathValidationStructure* pvs
         pvs->abrt = initialize_array_based_routing_table(number_of_routes);
         pvs->routing_table_type = ARRAY_BASED_ROUTING_TABLE_TYPE;
     } else {
+        pvs->hbrt = initialize_hbrt(100);
         pvs->routing_table_type = HASH_BASED_ROUTING_TABLE_TYPE;
     }
     pvs->abit = initialize_array_based_interface_table(number_of_interfaces);
