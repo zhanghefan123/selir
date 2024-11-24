@@ -30,6 +30,8 @@ enum {
     CMD_ECHO, // 1. 用来进行消息回显的
     CMD_INIT_ROUTING_AND_FORWARDING_TABLE, // 2. 初始化路由表和接口表
     CMD_INIT_BLOOM_FILTER, // 3. 初始化布隆过滤器
+    CMD_INSERT_INTERFACE_TABLE_ENTRY, // 4. 进行接口表条目的插入
+    CMD_INSERT_ROUTING_TABLE_ENTRY, // 5. 进行路由表条目的插入
 };
 
 #define VERSION_NR 1

@@ -8,24 +8,30 @@
 
 /**
  * 进行布隆过滤器的初始化
- * @param total_length 总长度 (8字节为单位)
+ * @param effective_bits 有效的位数
+ * @param hash_seed 哈希种子
+ * @param number_of_hash_functions 哈希函数的个数
  */
-struct BloomFilter *init_bloom_filter(int total_length, u32 effective_bits, u32 hash_seed, u32 number_of_hash_functions) {
+struct BloomFilter *init_bloom_filter(u32 effective_bits, u32 hash_seed, u32 number_of_hash_functions) {
     // 进行内存的分配
     struct BloomFilter *created_bloom_filter = (struct BloomFilter *) kmalloc(sizeof(struct BloomFilter), GFP_KERNEL);
-    // 设置总长度 (单位字节)
-    created_bloom_filter->total_length = total_length;
     // 设置 u32 个数
     created_bloom_filter->aligned_u32_count = 0x0;
-    // 设置 bit array
-    created_bloom_filter->bitset = (unsigned long *) kmalloc(sizeof(unsigned long) * total_length, GFP_KERNEL);
-    memset(created_bloom_filter->bitset, 0, total_length);
-    // 设置其他参数
-    created_bloom_filter->bitset_mask = effective_bits - 1;
+    // 设置 effective_bits
     created_bloom_filter->effective_bits = effective_bits;
+    // 设置掩码
+    created_bloom_filter->bitset_mask = effective_bits - 1;
+    // 设置 effective_bytes
     created_bloom_filter->effective_bytes = (effective_bits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+    // 设置 bit set
+    created_bloom_filter->bitset = (unsigned char *) kmalloc(
+            sizeof(unsigned char) * created_bloom_filter->effective_bytes, GFP_KERNEL);
+    memset(created_bloom_filter->bitset, 0, created_bloom_filter->effective_bytes);
+    // 设置哈希种子
     created_bloom_filter->hash_seed = hash_seed;
-    created_bloom_filter->nr_hash_funcs = number_of_hash_functions;
+    // 设置哈希函数个数
+    created_bloom_filter->number_of_hash_functions = number_of_hash_functions;
+    // 返回创建好的布隆过滤器
     return created_bloom_filter;
 }
 
@@ -36,12 +42,11 @@ struct BloomFilter *init_bloom_filter(int total_length, u32 effective_bits, u32 
  */
 struct BloomFilter *copy_bloom_filter(struct BloomFilter *old_bloom_filter) {
     // 创建一个新的布隆过滤器
-    struct BloomFilter *new_bloom_filter = init_bloom_filter(old_bloom_filter->total_length,
-                                                             old_bloom_filter->bitset_mask,
+    struct BloomFilter *new_bloom_filter = init_bloom_filter(old_bloom_filter->effective_bits,
                                                              old_bloom_filter->hash_seed,
-                                                             old_bloom_filter->nr_hash_funcs);
+                                                             old_bloom_filter->number_of_hash_functions);
     // 拷贝数组
-    memcpy(new_bloom_filter->bitset, old_bloom_filter->bitset, sizeof(unsigned long) * old_bloom_filter->total_length);
+    memcpy(new_bloom_filter->bitset, old_bloom_filter->bitset, sizeof(unsigned char) * old_bloom_filter->effective_bytes);
     // 返回新的布隆过滤器
     return new_bloom_filter;
 }
@@ -55,7 +60,7 @@ void reset_bloom_filter(struct BloomFilter *bloom_filter) {
     // 判断是否 bitset 不为空
     if (bloom_filter->bitset != NULL) {
         // 如果不为空, 调用 memset 刷 0
-        memset(bloom_filter->bitset, 0, sizeof(unsigned long) * bloom_filter->total_length);
+        memset(bloom_filter->bitset, 0, sizeof(unsigned char) * bloom_filter->effective_bytes);
     }
 }
 
@@ -108,9 +113,9 @@ u32 bloom_hash_function(struct BloomFilter *bloom, void *value, u32 value_size, 
 void push_element_into_bloom_filter(struct BloomFilter *bloom, void *value, u32 value_size) {
     u32 i;
     u32 hash;
-    for (i = 0; i < bloom->nr_hash_funcs; i++) {
+    for (i = 0; i < bloom->number_of_hash_functions; i++) {
         hash = bloom_hash_function(bloom, value, value_size, i);
-        set_bit(hash, bloom->bitset);
+        set_bit(hash, (unsigned long*)(bloom->bitset));
     }
 }
 
@@ -139,9 +144,9 @@ void push_elements_into_bloom_filter(struct BloomFilter *bloom, int length, int 
 int check_element_in_bloom_filter(struct BloomFilter *bloom, void *value, u32 value_size) {
     u32 i;
     u32 hash;
-    for (i = 0; i < bloom->nr_hash_funcs; i++) {
+    for (i = 0; i < bloom->number_of_hash_functions; i++) {
         hash = bloom_hash_function(bloom, value, value_size, i);
-        if (!test_bit(hash, bloom->bitset)) {
+        if (!test_bit(hash, (unsigned long*)(bloom->bitset))) {
             // 说明元素从来没有被插入过
             return 1;
         }
@@ -150,14 +155,12 @@ int check_element_in_bloom_filter(struct BloomFilter *bloom, void *value, u32 va
 }
 
 void test_bloom_filter(void) {
-    // 1. 1 unsigned long = 8 bytes
-    int total_length = 1;
-    int bitset_mask = 0x3F;
+    // 1. 创建变量
+    int effective_bits = 32;
     int hash_seed = 0x12;
     int number_of_hash_functions = 0x05;
     // 2. 创建布隆过滤器
-    struct BloomFilter *bloom_filter_tmp = init_bloom_filter(total_length, bitset_mask, hash_seed,
-                                                             number_of_hash_functions);
+    struct BloomFilter *bloom_filter_tmp = init_bloom_filter(effective_bits, hash_seed, number_of_hash_functions);
     // 3. 开始进行测试
     // --------------------------------------------------------------------
     LOG_WITH_EDGE("start to test bloom filter");
@@ -206,7 +209,6 @@ void test_bloom_filter(void) {
     LOG_WITH_PREFIX("insert element one by one");
     push_element_into_bloom_filter(bloom_filter_tmp, &first_insert_element, sizeof(first_insert_element));
     push_element_into_bloom_filter(bloom_filter_tmp, &second_insert_element, sizeof(second_insert_element));
-    LOG_WITH_EDGE("end to test bloom filter");
     // 3.7 再次进行check
     for (index = 0; index < 3; index++) {
         int checkElement = allElements[index];
@@ -238,4 +240,5 @@ void test_bloom_filter(void) {
     delete_bloom_filter(bloom_filter_copy);
     kfree(allElements);
     kfree(insertElements);
+    LOG_WITH_EDGE("end to test bloom filter");
 }

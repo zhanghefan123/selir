@@ -9,14 +9,20 @@
 #include "tools/tools.h"
 #include "api/test.h"
 #include "api/netlink_router.h"
+#include "structure/namespace.h"
+#include "structure/path_validation_structure.h"
 
 /**
  * 进行网络命名空间的初始化
  * @param net 网络命名空间
  * @return
  */
-static int __net_init module_net_init(struct net* net){
+static int __net_init module_net_init(struct net* current_ns){
     LOG_WITH_EDGE("net init process");
+    // 1. 初始化 path_validation_structure
+    struct PathValidationStructure* pvs = initialize_path_validation_structure();
+    // 2. 设置到 netnamespace 之中
+    set_pvs_in_ns(current_ns, pvs);
     LOG_WITH_EDGE("net init process");
     return 0;
 }
@@ -26,8 +32,12 @@ static int __net_init module_net_init(struct net* net){
  * @param net 网络命名空间
  * 无返回值
  */
-static void __net_exit module_net_exit(struct net* net){
+static void __net_exit module_net_exit(struct net* current_ns){
     LOG_WITH_EDGE("net exit process");
+    // 1. 取出 path_validation_structure
+    struct PathValidationStructure* pvs = get_pvs_from_ns(current_ns);
+    // 2. 释放 path_validation_structure
+    free_path_validation_structure(pvs);
     LOG_WITH_EDGE("net exit process");
 }
 
@@ -47,18 +57,18 @@ static struct pernet_operations net_namespace_operations = {
 static int __init module_init_function(void){
     bool resolve_result;
     register_pernet_subsys(&net_namespace_operations);
-    // 进行内核函数地址的解析
+    // 1. 进行内核函数地址的解析
     resolve_result = resolve_function_address();
     if (!resolve_result){
         return -1;
     }
-    // 进行测试
+    // 2. 进行测试
     test_apis();
 
-    // 进行 netlink server 的注册
+    // 3. 进行 netlink server 的注册
     netlink_server_init();
 
-    // 开始进行 hook 的安装
+    // 4. 开始进行 hook 的安装
     start_install_hooks();
     return 0;
 }

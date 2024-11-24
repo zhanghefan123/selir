@@ -6,17 +6,16 @@
 #define LOADABLE_KERNEL_MODULE_BLOOM_FILTER_H
 #include <asm-generic/int-ll64.h>
 struct BloomFilter {
-    int total_length; // note that total length may not be full used (unit -> unsigned long 8 bytes)
     u32 bitset_mask; // bitset mask can be 31 represent for 32 bit - bitset can be 63 represent for 63 bit
     u32 hash_seed; // hash seed
     u32 aligned_u32_count; // number of u32 values in this array
-    u32 nr_hash_funcs; // number of hash functions
-    unsigned long* bitset; // bloom filter bitset and how to assign it
+    u32 number_of_hash_functions; // number of hash functions
+    unsigned char* bitset; // bloom filter bitset and how to assign it
     u32 effective_bits; // the effective bits in bloom filter
     u32 effective_bytes; // the effective bytes in bloom filter, it should be calculated while in the bloom filter params setting
 };
 
-struct BloomFilter* init_bloom_filter(int total_length, u32 effective_bits, u32 hash_seed, u32 number_of_hash_functions); // 进行布隆过滤器的初始化
+struct BloomFilter* init_bloom_filter(u32 effective_bits, u32 hash_seed, u32 number_of_hash_functions); // 进行布隆过滤器的初始化
 
 struct BloomFilter* copy_bloom_filter(struct BloomFilter* bloom_filter); // 进行布隆过滤器的拷贝
 

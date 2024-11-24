@@ -60,6 +60,11 @@ void calculate_hash(struct shash_desc* hash_api, char* data){
  * @return
  */
 void calculate_hmac(struct shash_desc* hmac_api, char* data, char* key){
+    // 判断是否 hmac_api 为 NULl
+    if((NULL == hmac_api) || (NULL == hmac_api -> tfm)){
+        return;
+    }
+
     // 判断 hmac 是否已经分配了内存 -> 如果还没有就进行内存的分配
     if(NULL == hmac_output){
         hmac_output = (unsigned char*) kmalloc(sizeof(unsigned char) * 20, GFP_KERNEL);
@@ -67,18 +72,10 @@ void calculate_hmac(struct shash_desc* hmac_api, char* data, char* key){
 
     // 设置密钥
     if (crypto_shash_setkey(hmac_api->tfm, key, strlen(key))) {
-        // 失败的情况下进行的操作
-        printk(KERN_ERR "Failed to set key.\n");
-        crypto_free_shash(hmac_api->tfm);
-        kfree(hmac_api);
         return;
     }
     // 计算 hmac
     if (crypto_shash_digest(hmac_api, data, strlen(data), hmac_output)) {
-        // 失败的情况下进行的操作
-        printk(KERN_ERR "Failed to compute HMAC.\n");
-        crypto_free_shash(hmac_api->tfm);
-        kfree(hmac_api);
         return;
     }
 }

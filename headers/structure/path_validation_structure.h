@@ -22,8 +22,12 @@ struct PathValidationStructure {
 
 };
 
-struct PathValidationStructure* initialize_path_validation_structure(int number_of_routes, int number_of_interfaces);
+struct PathValidationStructure* initialize_path_validation_structure(void);
 
 void free_path_validation_structure(struct PathValidationStructure* path_validation_structure);
+
+void initialize_routing_and_forwarding_table(struct PathValidationStructure* pvs, int number_of_routes, int number_of_interfaces);
+
+struct InterfaceTableEntry* find_interface_entry_with_link_identifier(struct PathValidationStructure* pvs, int link_identifier);
 
 #endif //LOADABLE_KERNEL_MODULE_PATH_VALIDATION_STRUCTURE_H
