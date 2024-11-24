@@ -1,4 +1,4 @@
-#include "structure/source_routing_table_entry.h"
+#include "structure/source_routing_table.h"
 
 /**
  * 进行源路由表项的创建, 分配内存
@@ -32,4 +32,39 @@ void free_source_routing_table_entry(struct SourceRoutingTableEntry* source_rout
             kfree(source_routing_table_entry->link_identifiers);
         }
     }
+}
+
+/**
+ * 进行基于数组的路由表的创建
+ * @param number_of_routes 路由的条数
+ * @return
+ */
+struct ArrayBasedRoutingTable* initialize_array_based_routing_table(int number_of_routes){
+    // 分配内存
+    struct ArrayBasedRoutingTable* abrt = (struct ArrayBasedRoutingTable*)kmalloc(sizeof(struct ArrayBasedRoutingTable), GFP_KERNEL);
+    // 设置路由条数
+    abrt->number_of_routes = number_of_routes;
+    // 为路由表分配内存
+    abrt->routes = (struct SourceRoutingTableEntry*) kmalloc(sizeof(struct SourceRoutingTableEntry) * number_of_routes, GFP_KERNEL);
+    // 进行创建结果的返回
+    return abrt;
+}
+
+/**
+ * 进行基于数组的路由表的释放
+ * @param abrt
+ */
+void free_array_based_routing_table(struct ArrayBasedRoutingTable* abrt){
+    int index;
+    if(NULL != abrt){
+        if(NULL != abrt->routes){
+            for(index = 0; index < abrt->number_of_routes; index++){
+                free_source_routing_table_entry(&(abrt->routes[index]));
+            }
+            kfree(abrt->routes);
+        }
+        kfree(abrt);
+        abrt = NULL;
+    }
+
 }

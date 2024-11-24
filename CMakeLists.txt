@@ -22,11 +22,15 @@ add_executable(lkm
         src/api/test.c
         src/api/netlink_router.c
         src/api/netlink_handler.c
+        src/api/option_resolver.c
         src/structure/namespace.c
         src/structure/crypto_structure.c
         src/structure/bloom_filter.c
+        src/structure/destination_info.c
+        src/structure/hash_table.c
         src/structure/path_validation_structure.c
-        src/structure/source_routing_table_entry.c
+        src/structure/source_routing_table.c
+        src/structure/interface_table.c
         src/hooks/ipv6_rcv/hook.c
         src/hooks/ipv6_rcv/impl.c
         src/hooks/ipv6_rcv_finish/impl.c
@@ -35,6 +39,8 @@ add_executable(lkm
         src/hooks/tcp_v4_rcv/impl.c
         src/hooks/tcp_v4_do_rcv/impl.c
         src/hooks/tcp_rcv_established/impl.c
+        src/hooks/udp_sendmsg/hook.c
+        src/hooks/udp_sendmsg/impl.c
         src/prepare/resolve_function_address.c
         src/tools/tools.c
         src/module_starter.c

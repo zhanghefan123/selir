@@ -8,6 +8,7 @@
 #include "prepare/resolve_function_address.h"
 #include "hooks/ipv6_rcv/ipv6_rcv.h"
 #include "hooks/tcp_v4_rcv/tcp_v4_rcv.h"
+#include "hooks/udp_sendmsg/udp_sendmsg.h"
 
 // 我们添加的 hook 列表, 假设最多10个
 struct ftrace_hook hooks[MAXIMUM_SUPPORTED_HOOK_FUNCTIONS];
@@ -19,6 +20,7 @@ int number_of_hook = 0;
 int install_hook_functions(void){
     add_ipv6_rcv_to_hook();
     add_tcp_v4_rcv_to_hook();
+    add_udp_sendmsg_to_hook();
     fh_install_hooks(hooks, number_of_hook);
     LOG_WITH_PREFIX("already install hooks");
     tidy();

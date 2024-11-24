@@ -47,15 +47,17 @@ const struct genl_ops exmpl_gnl_ops_echo[] = {
                 .cmd = CMD_INIT_BLOOM_FILTER,
                 .policy = attr_type_mapping,
                 .doit = netlink_init_bloom_filter_handler,
-         }, {
+         },
+         {
+                 .cmd = CMD_INSERT_INTERFACE_TABLE_ENTRY,
+                 .policy = attr_type_mapping,
+                 .doit = netlink_insert_interface_table_entry_handler,
+         },
+         {
                 .cmd = CMD_INSERT_ROUTING_TABLE_ENTRY,
                 .policy = attr_type_mapping,
                 .doit = netlink_insert_routing_table_entry_handler,
-         }, {
-                .cmd = CMD_INSERT_INTERFACE_TABLE_ENTRY,
-                .policy = attr_type_mapping,
-                .doit = netlink_insert_interface_table_entry_handler,
-         }
+         },
 };
 
 /**

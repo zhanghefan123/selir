@@ -17,11 +17,15 @@ selir-objs := \
 	src/api/test.o \
 	src/api/netlink_router.o \
 	src/api/netlink_handler.o \
+	src/api/option_resolver.o \
 	src/structure/namespace.o \
 	src/structure/crypto_structure.o \
 	src/structure/bloom_filter.o \
+	src/structure/destination_info.o \
+	src/structure/hash_table.o \
 	src/structure/path_validation_structure.o \
-	src/structure/source_routing_table_entry.o \
+	src/structure/source_routing_table.o \
+	src/structure/interface_table.o \
 	src/hooks/ipv6_rcv/hook.o \
 	src/hooks/ipv6_rcv/impl.o \
 	src/hooks/ipv6_rcv_finish/impl.o \
@@ -30,6 +34,8 @@ selir-objs := \
 	src/hooks/tcp_v4_do_rcv/impl.o \
 	src/hooks/tcp_v4_rcv/impl.o \
 	src/hooks/tcp_v4_rcv/hook.o \
+	src/hooks/udp_send_msg/impl.o \
+	src/hooks/udp_send_msg/hook.o \
 	src/prepare/resolve_function_address.o \
 	src/tools/tools.o \
 	src/module_starter.o \
