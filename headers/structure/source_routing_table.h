@@ -64,6 +64,7 @@ struct hlist_head *get_bucket_in_hbrt(struct HashBasedRoutingTable *hbrt,
                                                           int destination_id);
 int routing_entry_equal_judgement(struct SourceRoutingTableEntry *entry, int source_id, int destination_id);
 int add_entry_to_hbrt(struct HashBasedRoutingTable *hbrt, struct SourceRoutingTableEntry *routing_table_entry);
+int free_hash_based_routing_table(struct HashBasedRoutingTable* hbrt);
 // ----------------------------------------------------------------------------------------------
 
 #endif //LOADABLE_KERNEL_MODULE_SOURCE_ROUTING_TABLE_H

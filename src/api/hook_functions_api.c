@@ -20,7 +20,7 @@ int number_of_hook = 0;
 int install_hook_functions(void){
     add_ipv6_rcv_to_hook();
     add_tcp_v4_rcv_to_hook();
-    add_udp_sendmsg_to_hook();
+//    add_udp_sendmsg_to_hook();
     fh_install_hooks(hooks, number_of_hook);
     LOG_WITH_PREFIX("already install hooks");
     tidy();

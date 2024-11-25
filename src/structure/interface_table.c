@@ -11,7 +11,7 @@ struct ArrayBasedInterfaceTable* initialize_array_based_interface_table(int numb
     // 设置接口数量
     ibrt->number_of_interfaces = number_of_interfaces;
     // 为接口表分配内存
-    ibrt->interfaces = (struct InterfaceTableEntry*)kmalloc(sizeof(struct InterfaceTableEntry) * number_of_interfaces);
+    ibrt->interfaces = (struct InterfaceTableEntry*)kmalloc(sizeof(struct InterfaceTableEntry) * number_of_interfaces, GFP_KERNEL);
     // 进行创建结果返回
     return ibrt;
 }

@@ -102,9 +102,9 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
 
     // 2. 参数的定义
     // -----------------------------------------------------------------
-    int routing_table_type;
-    int number_of_routes;
-    int number_of_interfaces;
+    int routing_table_type; // 路由表类型
+    int number_of_routes_or_buckets;   // 路由条数或者桶数
+    int number_of_interfaces; // 接口数量
     // -----------------------------------------------------------------
 
     // 3. 准备进行消息的处理
@@ -123,8 +123,8 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
             if (count == 0) {
                 routing_table_type = variable_in_integer;
             } else if (count == 1) {
-                number_of_routes = variable_in_integer;
-            } else if (count == 2){
+                number_of_routes_or_buckets = variable_in_integer;
+            } else if (count == 2) {
                 number_of_interfaces = variable_in_integer;
             } else {
                 return -EINVAL;
@@ -133,15 +133,22 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
         count += 1;
     }
     // 3.2 从 current_ns 之中获取 path_validation_structure
-    struct PathValidationStructure* pvs = get_pvs_from_ns(current_ns);
+    struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
     // 3.3 创建 path validation structure
-    initialize_routing_and_forwarding_table(pvs, number_of_routes, number_of_interfaces);
+    initialize_routing_and_forwarding_table(pvs, routing_table_type, number_of_routes_or_buckets, number_of_interfaces);
     // -----------------------------------------------------------------
 
     // 4. 准备进行消息的返回
     // -----------------------------------------------------------------
-    snprintf(response_buffer, sizeof(response_buffer), "number_of_routes: %d, number_of_interfaces: %d",
-             number_of_routes, number_of_interfaces);
+    if(routing_table_type == 1){
+        snprintf(response_buffer, sizeof(response_buffer), "number_of_routes: %d, number_of_interfaces: %d",
+                 number_of_routes_or_buckets, number_of_interfaces);
+    } else if (routing_table_type == 2){
+        snprintf(response_buffer, sizeof(response_buffer), "number_of_buckets: %d, number_of_interfaces: %d",
+                 number_of_routes_or_buckets, number_of_interfaces);
+    } else {
+        snprintf(response_buffer, sizeof(response_buffer), "unknown routing table type");
+    }
     return send_reply(response_buffer, info);
     // -----------------------------------------------------------------
 }
@@ -222,7 +229,7 @@ int netlink_init_bloom_filter_handler(struct sk_buff *request, struct genl_info 
  * @param info
  * @return
  */
-int netlink_insert_routing_table_entry_handler(struct sk_buff* request, struct genl_info* info){
+int netlink_insert_routing_table_entry_handler(struct sk_buff *request, struct genl_info *info) {
     // 1. 变量的定义
     // -----------------------------------------------------------------
     char *receive_buffer;               // 接收缓存 - 用来缓存用户空间下发的数据
@@ -230,10 +237,10 @@ int netlink_insert_routing_table_entry_handler(struct sk_buff* request, struct g
     const char *delimeter = ",";        // 分隔符
     int count = 0;                      // 表示当前是第几个属性
     struct net *current_ns = sock_net(request->sk);
-    struct PathValidationStructure* pvs = get_pvs_from_ns(current_ns);
-    struct BloomFilter* bf = pvs->bloom_filter;
+    struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
+    struct BloomFilter *bf = pvs->bloom_filter;
     struct SourceRoutingTableEntry *sre = init_source_routing_table_entry(bf->effective_bytes);
-    struct InterfaceTableEntry* first_interface = NULL;
+    struct InterfaceTableEntry *first_interface = NULL;
     // -----------------------------------------------------------------
 
     // 2. 参数的定义
@@ -271,8 +278,8 @@ int netlink_insert_routing_table_entry_handler(struct sk_buff* request, struct g
             } else if (count == 2) {
                 path_length = variable_in_integer;
                 sre->path_length = path_length;
-                sre->link_identifiers = (int*) kmalloc(sizeof(int) * path_length, GFP_KERNEL);
-                sre->node_ids = (int*)kmalloc(sizeof(int)*path_length, GFP_KERNEL);
+                sre->link_identifiers = (int *) kmalloc(sizeof(int) * path_length, GFP_KERNEL);
+                sre->node_ids = (int *) kmalloc(sizeof(int) * path_length, GFP_KERNEL);
             } else {
                 if (count == 3) {
                     first_link_identifier = variable_in_integer;
@@ -294,7 +301,13 @@ int netlink_insert_routing_table_entry_handler(struct sk_buff* request, struct g
     // 3.3 结束的时候进行布隆过滤器的重置
     reset_bloom_filter(bf);
     // 3.4 放到路由表之中
-    pvs->abrt->routes[destination_id] = *sre;
+    // 3.4.1 判断使用的路由表的类型
+    if (ARRAY_BASED_ROUTING_TABLE_TYPE == pvs->routing_table_type) {
+        pvs->abrt->routes[destination_id] = *sre;
+    } else if (HASH_BASED_ROUTING_TABLE_TYPE == pvs->routing_table_type) {
+        add_entry_to_hbrt(pvs->hbrt, sre);
+    }
+
     // -----------------------------------------------------------------
 
     // 4. 准备进行消息的返回
@@ -312,7 +325,7 @@ int netlink_insert_routing_table_entry_handler(struct sk_buff* request, struct g
  * @param info
  * @return
  */
-int netlink_insert_interface_table_entry_handler(struct sk_buff* request, struct genl_info* info){
+int netlink_insert_interface_table_entry_handler(struct sk_buff *request, struct genl_info *info) {
     // 1. 变量的定义
     // -----------------------------------------------------------------
     char *receive_buffer;               // 接收缓存 - 用来缓存用户空间下发的数据
@@ -355,7 +368,7 @@ int netlink_insert_interface_table_entry_handler(struct sk_buff* request, struct
         count += 1;
     }
     // 3.2 获取 pvs
-    struct PathValidationStructure* pvs = get_pvs_from_ns(current_ns);
+    struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
     pvs->abit->interfaces[index].link_identifier = link_identifier;
     pvs->abit->interfaces[index].interface = dev_get_by_index(current_ns, ifindex);
     dev_put(pvs->abit->interfaces[index].interface);

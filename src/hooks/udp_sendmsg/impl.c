@@ -43,5 +43,5 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len){
     struct SourceRoutingTableEntry* routing_table_entry = &(pvs->abrt->routes[destination_info->destinations[0]]);
     // 构建 skb
     struct sk_buff* packet;
-    packet =
+    return 0;
 }
