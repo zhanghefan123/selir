@@ -123,3 +123,16 @@ void print_hash_or_hmac_result(unsigned char* output, int length){
         printk(KERN_CONT "%02x", output[i]);
     printk(KERN_CONT "\n");
 }
+
+/**
+ * 进行内存的相或
+ * @param source 内存的源
+ * @param target 内存的目的
+ * @param length 长度
+ */
+void memory_or(unsigned char* source, unsigned char* target, int length){
+    int index;
+    for(index = 0; index < length; index++){
+        source[index] = source[index] | target[index];
+    }
+}

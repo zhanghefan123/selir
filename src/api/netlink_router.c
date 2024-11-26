@@ -39,6 +39,11 @@ const struct genl_ops exmpl_gnl_ops_echo[] = {
                  .doit = netlink_echo_handler,
          },
          {
+                 .cmd = CMD_SET_NODE_ID,
+                 .policy = attr_type_mapping,
+                 .doit = netlink_set_node_id_handler,
+         },
+         {
                 .cmd = CMD_INIT_ROUTING_AND_FORWARDING_TABLE,
                 .policy = attr_type_mapping,
                 .doit = netlink_init_routing_and_forwarding_table_handler,

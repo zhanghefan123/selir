@@ -1,6 +1,6 @@
 #include "api/test.h"
-#include "structure/bloom_filter.h"
-#include "structure/crypto_structure.h"
+#include "structure/crypto/bloom_filter.h"
+#include "structure/crypto/crypto_structure.h"
 
 /**
  * 测试一些 api

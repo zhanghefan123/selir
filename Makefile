@@ -19,12 +19,15 @@ selir-objs := \
 	src/api/netlink_handler.o \
 	src/api/option_resolver.o \
 	src/structure/namespace.o \
-	src/structure/crypto_structure.o \
-	src/structure/bloom_filter.o \
+	src/structure/crypto/crypto_structure.o \
+	src/structure/crypto/bloom_filter.o \
 	src/structure/destination_info.o \
 	src/structure/path_validation_structure.o \
-	src/structure/source_routing_table.o \
 	src/structure/interface_table.o \
+	src/structure/routing/array_based_routing_table.o \
+	src/structure/routing/hash_based_routing_table.o \
+	src/structure/routing/routing_calc_res.o \
+	src/structure/routing/routing_table_entry.o \
 	src/hooks/ipv6_rcv/hook.o \
 	src/hooks/ipv6_rcv/impl.o \
 	src/hooks/ipv6_rcv_finish/impl.o \

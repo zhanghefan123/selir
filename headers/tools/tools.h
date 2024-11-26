@@ -9,4 +9,5 @@ bool resolve_functions_addresses(void** functions, const char** function_names, 
 void printk_binary_u32(u32 n);
 void printk_binary_u8(u8 n);
 void print_hash_or_hmac_result(unsigned char* output, int length);
+void memory_or(unsigned char* source, unsigned char* target, int length);
 #endif

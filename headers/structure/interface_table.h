@@ -11,13 +11,14 @@
 struct InterfaceTableEntry {
     int link_identifier; // 链路标识
     struct net_device *interface; // 对应的接口
+    int index; // 在接口表之中的索引
 };
 // ----------------------------------------------------------------------------------------------
 
 // 2. 基于数组的接口表相关内容
 // ----------------------------------------------------------------------------------------------
 struct ArrayBasedInterfaceTable{
-    // 接口的数量
+    // 总的接口的数量
     int number_of_interfaces;
     // 所有的接口
     struct InterfaceTableEntry* interfaces;

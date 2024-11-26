@@ -5,11 +5,12 @@
 #ifndef LOADABLE_KERNEL_MODULE_PATH_VALIDATION_STRUCTURE_H
 #define LOADABLE_KERNEL_MODULE_PATH_VALIDATION_STRUCTURE_H
 
-#include "structure/bloom_filter.h"
+#include "structure/crypto/bloom_filter.h"
 #include "structure/interface_table.h"
-#include "structure/source_routing_table.h"
 
 struct PathValidationStructure {
+    // 当前节点的 id
+    int node_id;
     // 路由表的类型
     int routing_table_type;
     // 基于数组的路由表

@@ -85,6 +85,44 @@ int netlink_echo_handler(struct sk_buff *request, struct genl_info *info) {
 }
 
 /**
+ * 进行 id 的设置
+ * @param request
+ * @param info
+ * @return
+ */
+int netlink_set_node_id_handler(struct sk_buff* request, struct genl_info* info){
+    // 1. 变量的定义
+    // -----------------------------------------------------------------
+    char *receive_buffer;               // 接收缓存 - 用来缓存用户空间下发的数据
+    char response_buffer[1024];         // 响应消息缓存
+    struct net *current_ns = sock_net(request->sk);
+    // -----------------------------------------------------------------
+
+    // 2. 参数的定义
+    // -----------------------------------------------------------------
+    int node_id; // 节点 id
+    // -----------------------------------------------------------------
+
+    // 3. 准备进行消息的处理
+    // -----------------------------------------------------------------
+    // 消息格式: number_of_routes, number_of_interfaces
+    // 3.1 读取参数
+    receive_buffer = recv_message(info);
+    node_id = (int)(simple_strtol(receive_buffer, NULL, 10));
+    // 3.2 从 current_ns 之中获取 path_validation_structure
+    struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
+    // 3.3 创建 path validation structure
+    pvs->node_id = node_id;
+    // -----------------------------------------------------------------
+
+    // 4. 准备进行消息的返回
+    // -----------------------------------------------------------------
+    snprintf(response_buffer, sizeof(response_buffer), "node id: %d", node_id);
+    return send_reply(response_buffer, info);
+    // -----------------------------------------------------------------
+}
+
+/**
  * 处理初始化命令
  * @param request
  * @param info
@@ -95,7 +133,7 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
     // -----------------------------------------------------------------
     char *receive_buffer;               // 接收缓存 - 用来缓存用户空间下发的数据
     char response_buffer[1024];         // 响应消息缓存
-    const char *delimeter = ",";        // 分隔符
+    const char *delimiter = ",";        // 分隔符
     int count = 0;                      // 表示当前是第几个属性
     struct net *current_ns = sock_net(request->sk);
     // -----------------------------------------------------------------
@@ -114,7 +152,7 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
     receive_buffer = recv_message(info);
     while (true) {
         // 分割出来的字符串
-        char *variable_in_str = strsep(&receive_buffer, delimeter);
+        char *variable_in_str = strsep(&receive_buffer, delimiter);
         // 如果为空就进行 break
         if (variable_in_str == NULL || (0 == strcmp(variable_in_str, ""))) {
             break;
@@ -284,7 +322,7 @@ int netlink_insert_routing_table_entry_handler(struct sk_buff *request, struct g
                 if (count == 3) {
                     first_link_identifier = variable_in_integer;
                     first_interface = find_intf_in_abit(pvs->abit, first_link_identifier);
-                    sre->output_interface = first_interface->interface;
+                    sre->output_interface = first_interface;
                     sre->link_identifiers[link_identifier_index++] = variable_in_integer;
                 } else if (count % 2 == 0) { // node id
                     sre->node_ids[node_index++] = variable_in_integer;
@@ -330,7 +368,7 @@ int netlink_insert_interface_table_entry_handler(struct sk_buff *request, struct
     // -----------------------------------------------------------------
     char *receive_buffer;               // 接收缓存 - 用来缓存用户空间下发的数据
     char response_buffer[1024];         // 响应消息缓存
-    const char *delimeter = ",";        // 分隔符
+    const char *delimiter = ",";        // 分隔符
     int count = 0;                      // 表示当前是第几个属性
     struct net *current_ns = sock_net(request->sk);
     // -----------------------------------------------------------------
@@ -349,7 +387,7 @@ int netlink_insert_interface_table_entry_handler(struct sk_buff *request, struct
     receive_buffer = recv_message(info);
     while (true) {
         // 分割出来的字符串
-        char *variable_in_str = strsep(&receive_buffer, delimeter);
+        char *variable_in_str = strsep(&receive_buffer, delimiter);
         // 如果为空就进行 break
         if (variable_in_str == NULL || (0 == strcmp(variable_in_str, ""))) {
             break;
@@ -371,6 +409,7 @@ int netlink_insert_interface_table_entry_handler(struct sk_buff *request, struct
     struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
     pvs->abit->interfaces[index].link_identifier = link_identifier;
     pvs->abit->interfaces[index].interface = dev_get_by_index(current_ns, ifindex);
+    pvs->abit->interfaces[index].index = index;
     dev_put(pvs->abit->interfaces[index].interface);
     // -----------------------------------------------------------------
 

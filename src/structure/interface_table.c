@@ -32,8 +32,8 @@ void free_array_based_interface_table(struct ArrayBasedInterfaceTable* abit){
 
 /**
  * 利用链路标识进行接口表的查找
- * @param pvs
- * @param link_identifier
+ * @param pvs 路径验证数据结构
+ * @param link_identifier 链路标识
  * @return
  */
 struct InterfaceTableEntry* find_intf_in_abit(struct ArrayBasedInterfaceTable* abit, int link_identifier){
