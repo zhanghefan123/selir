@@ -1,7 +1,9 @@
 #include "api/netlink_router.h"
 #include "api/netlink_handler.h"
 #include "structure/path_validation_structure.h"
-#include "structure/namespace.h"
+#include "structure/namespace/namespace.h"
+#include "structure/routing/routing_table_entry.h"
+#include "structure/routing/variables.h"
 #include "tools/tools.h"
 
 /**
@@ -141,13 +143,14 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
     // 2. 参数的定义
     // -----------------------------------------------------------------
     int routing_table_type; // 路由表类型
+    int routing_type; // 路由的类型 -> 可能是
     int number_of_routes_or_buckets;   // 路由条数或者桶数
     int number_of_interfaces; // 接口数量
     // -----------------------------------------------------------------
 
     // 3. 准备进行消息的处理
     // -----------------------------------------------------------------
-    // 消息格式: number_of_routes, number_of_interfaces
+    // 消息格式: routing_table_type, routing_type, number_of_routes, number_of_interfaces
     // 3.1 读取参数
     receive_buffer = recv_message(info);
     while (true) {
@@ -160,9 +163,11 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
             int variable_in_integer = (int) (simple_strtol(variable_in_str, NULL, 10));
             if (count == 0) {
                 routing_table_type = variable_in_integer;
-            } else if (count == 1) {
-                number_of_routes_or_buckets = variable_in_integer;
+            } else if(count == 1) {
+                routing_type = variable_in_integer;
             } else if (count == 2) {
+                number_of_routes_or_buckets = variable_in_integer;
+            } else if (count == 3) {
                 number_of_interfaces = variable_in_integer;
             } else {
                 return -EINVAL;
@@ -277,7 +282,7 @@ int netlink_insert_routing_table_entry_handler(struct sk_buff *request, struct g
     struct net *current_ns = sock_net(request->sk);
     struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
     struct BloomFilter *bf = pvs->bloom_filter;
-    struct SourceRoutingTableEntry *sre = init_source_routing_table_entry(bf->effective_bytes);
+    struct RoutingTableEntry *sre = init_routing_table_entry((int)(bf->effective_bytes));
     struct InterfaceTableEntry *first_interface = NULL;
     // -----------------------------------------------------------------
 
@@ -341,11 +346,10 @@ int netlink_insert_routing_table_entry_handler(struct sk_buff *request, struct g
     // 3.4 放到路由表之中
     // 3.4.1 判断使用的路由表的类型
     if (ARRAY_BASED_ROUTING_TABLE_TYPE == pvs->routing_table_type) {
-        pvs->abrt->routes[destination_id] = *sre;
+        add_entry_to_abrt(pvs->abrt, sre);
     } else if (HASH_BASED_ROUTING_TABLE_TYPE == pvs->routing_table_type) {
         add_entry_to_hbrt(pvs->hbrt, sre);
     }
-
     // -----------------------------------------------------------------
 
     // 4. 准备进行消息的返回

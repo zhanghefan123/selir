@@ -16,7 +16,7 @@ struct ArrayBasedRoutingTable {
     // 路由条数
     int number_of_routes;
     // 所有的路由条目
-    struct RoutingTableEntry *routes;
+    struct RoutingTableEntry **routes;
 };
 
 struct ArrayBasedRoutingTable *init_abrt(int number_of_routes);
@@ -24,6 +24,8 @@ struct ArrayBasedRoutingTable *init_abrt(int number_of_routes);
 void free_abrt(struct ArrayBasedRoutingTable *abrt);
 
 struct RoutingTableEntry *find_sre_in_abrt(struct ArrayBasedRoutingTable *abrt, int destination);
+
+void add_entry_to_abrt(struct ArrayBasedRoutingTable* abrt, struct RoutingTableEntry* rte);
 
 struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct ArrayBasedRoutingTable *abrt,
                                                                struct DestinationInfo *destination_info,

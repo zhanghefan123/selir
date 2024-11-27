@@ -19,6 +19,8 @@ struct RoutingCalcRes *init_rcr(struct DestinationInfo *destination_info,
     int single_bf_size = bf_effective_bytes;
     // 总的 bitsets 大小
     int bitsets_size = (int) (sizeof(unsigned char) * single_bf_size * number_of_output_interfaces);
+    // 设置出接口数量
+    route_calculation_result->number_of_output_interfaces = number_of_output_interfaces;
     // 为 bitsets 分配内存
     route_calculation_result->bitsets = (unsigned char *) (kmalloc(bitsets_size, GFP_KERNEL));
     memset(route_calculation_result->bitsets, 0, bitsets_size);

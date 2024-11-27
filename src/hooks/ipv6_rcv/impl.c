@@ -19,9 +19,9 @@ bool resolve_ipv6_rcv_inner_functions_address(void) {
     // 所有的待初始化的函数指针构成的数组
     void* functions[1];
     // 所有的函数名
-    const char* function_names[1];
-    // 放置函数名
-    function_names[0] = ip6_rcv_core_str;
+    char* function_names[1] = {
+            ip6_rcv_core_str
+    };
     // 解析函数地址
     resolve_result = resolve_functions_addresses(functions, function_names, 1);
     // 将函数地址提取

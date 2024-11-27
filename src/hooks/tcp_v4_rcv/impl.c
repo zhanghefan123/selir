@@ -30,12 +30,13 @@ bool resolve_tcp_v4_rcv_inner_functions_address(void){
     bool resolve_result;
     // 所有待初始化的函数指针构成的数组
     void *functions[5];
-    const char* function_names[5];
-    function_names[0] = tcp_v4_fill_cb_str;
-    function_names[1] = tcp_v4_restore_cb_str;
-    function_names[2] = tcp_v4_send_reset_str;
-    function_names[3] = tcp_v4_send_ack_str;
-    function_names[4] = cookie_v4_check_str;
+    char* function_names[5] = {
+            tcp_v4_fill_cb_str,
+            tcp_v4_restore_cb_str,
+            tcp_v4_send_reset_str,
+            tcp_v4_send_ack_str,
+            cookie_v4_check_str
+    };
     resolve_result = resolve_functions_addresses(functions, function_names, 5);
     orig_tcp_v4_fill_cb = functions[0];
     orig_tcp_v4_restore_cb = functions[1];

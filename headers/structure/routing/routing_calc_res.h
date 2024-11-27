@@ -10,6 +10,7 @@
 
 // 1. 路由计算结果
 struct RoutingCalcRes {
+    int number_of_output_interfaces;
     unsigned char *bitsets; // 结果布隆过滤器
     struct net_device **output_interfaces; // 出接口
     struct DestinationInfo *destination_info; // 目的信息

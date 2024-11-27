@@ -321,6 +321,102 @@ src/hooks/ip6_rcv_finish_core/impl.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip6_rcv_finish_core/impl.c.s
 .PHONY : src/hooks/ip6_rcv_finish_core/impl.c.s
 
+src/hooks/ip_append_data/impl.o: src/hooks/ip_append_data/impl.c.o
+.PHONY : src/hooks/ip_append_data/impl.o
+
+# target to build an object file
+src/hooks/ip_append_data/impl.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_append_data/impl.c.o
+.PHONY : src/hooks/ip_append_data/impl.c.o
+
+src/hooks/ip_append_data/impl.i: src/hooks/ip_append_data/impl.c.i
+.PHONY : src/hooks/ip_append_data/impl.i
+
+# target to preprocess a source file
+src/hooks/ip_append_data/impl.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_append_data/impl.c.i
+.PHONY : src/hooks/ip_append_data/impl.c.i
+
+src/hooks/ip_append_data/impl.s: src/hooks/ip_append_data/impl.c.s
+.PHONY : src/hooks/ip_append_data/impl.s
+
+# target to generate assembly for a file
+src/hooks/ip_append_data/impl.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_append_data/impl.c.s
+.PHONY : src/hooks/ip_append_data/impl.c.s
+
+src/hooks/ip_make_skb/impl.o: src/hooks/ip_make_skb/impl.c.o
+.PHONY : src/hooks/ip_make_skb/impl.o
+
+# target to build an object file
+src/hooks/ip_make_skb/impl.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_make_skb/impl.c.o
+.PHONY : src/hooks/ip_make_skb/impl.c.o
+
+src/hooks/ip_make_skb/impl.i: src/hooks/ip_make_skb/impl.c.i
+.PHONY : src/hooks/ip_make_skb/impl.i
+
+# target to preprocess a source file
+src/hooks/ip_make_skb/impl.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_make_skb/impl.c.i
+.PHONY : src/hooks/ip_make_skb/impl.c.i
+
+src/hooks/ip_make_skb/impl.s: src/hooks/ip_make_skb/impl.c.s
+.PHONY : src/hooks/ip_make_skb/impl.s
+
+# target to generate assembly for a file
+src/hooks/ip_make_skb/impl.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_make_skb/impl.c.s
+.PHONY : src/hooks/ip_make_skb/impl.c.s
+
+src/hooks/ip_send_skb/impl.o: src/hooks/ip_send_skb/impl.c.o
+.PHONY : src/hooks/ip_send_skb/impl.o
+
+# target to build an object file
+src/hooks/ip_send_skb/impl.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_send_skb/impl.c.o
+.PHONY : src/hooks/ip_send_skb/impl.c.o
+
+src/hooks/ip_send_skb/impl.i: src/hooks/ip_send_skb/impl.c.i
+.PHONY : src/hooks/ip_send_skb/impl.i
+
+# target to preprocess a source file
+src/hooks/ip_send_skb/impl.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_send_skb/impl.c.i
+.PHONY : src/hooks/ip_send_skb/impl.c.i
+
+src/hooks/ip_send_skb/impl.s: src/hooks/ip_send_skb/impl.c.s
+.PHONY : src/hooks/ip_send_skb/impl.s
+
+# target to generate assembly for a file
+src/hooks/ip_send_skb/impl.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_send_skb/impl.c.s
+.PHONY : src/hooks/ip_send_skb/impl.c.s
+
+src/hooks/ip_setup_cork/impl.o: src/hooks/ip_setup_cork/impl.c.o
+.PHONY : src/hooks/ip_setup_cork/impl.o
+
+# target to build an object file
+src/hooks/ip_setup_cork/impl.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_setup_cork/impl.c.o
+.PHONY : src/hooks/ip_setup_cork/impl.c.o
+
+src/hooks/ip_setup_cork/impl.i: src/hooks/ip_setup_cork/impl.c.i
+.PHONY : src/hooks/ip_setup_cork/impl.i
+
+# target to preprocess a source file
+src/hooks/ip_setup_cork/impl.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_setup_cork/impl.c.i
+.PHONY : src/hooks/ip_setup_cork/impl.c.i
+
+src/hooks/ip_setup_cork/impl.s: src/hooks/ip_setup_cork/impl.c.s
+.PHONY : src/hooks/ip_setup_cork/impl.s
+
+# target to generate assembly for a file
+src/hooks/ip_setup_cork/impl.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/ip_setup_cork/impl.c.s
+.PHONY : src/hooks/ip_setup_cork/impl.c.s
+
 src/hooks/ipv6_rcv/hook.o: src/hooks/ipv6_rcv/hook.c.o
 .PHONY : src/hooks/ipv6_rcv/hook.o
 
@@ -488,6 +584,30 @@ src/hooks/tcp_v4_rcv/impl.s: src/hooks/tcp_v4_rcv/impl.c.s
 src/hooks/tcp_v4_rcv/impl.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/tcp_v4_rcv/impl.c.s
 .PHONY : src/hooks/tcp_v4_rcv/impl.c.s
+
+src/hooks/udp_send_skb/impl.o: src/hooks/udp_send_skb/impl.c.o
+.PHONY : src/hooks/udp_send_skb/impl.o
+
+# target to build an object file
+src/hooks/udp_send_skb/impl.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/udp_send_skb/impl.c.o
+.PHONY : src/hooks/udp_send_skb/impl.c.o
+
+src/hooks/udp_send_skb/impl.i: src/hooks/udp_send_skb/impl.c.i
+.PHONY : src/hooks/udp_send_skb/impl.i
+
+# target to preprocess a source file
+src/hooks/udp_send_skb/impl.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/udp_send_skb/impl.c.i
+.PHONY : src/hooks/udp_send_skb/impl.c.i
+
+src/hooks/udp_send_skb/impl.s: src/hooks/udp_send_skb/impl.c.s
+.PHONY : src/hooks/udp_send_skb/impl.s
+
+# target to generate assembly for a file
+src/hooks/udp_send_skb/impl.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/hooks/udp_send_skb/impl.c.s
+.PHONY : src/hooks/udp_send_skb/impl.c.s
 
 src/hooks/udp_sendmsg/hook.o: src/hooks/udp_sendmsg/hook.c.o
 .PHONY : src/hooks/udp_sendmsg/hook.o
@@ -657,29 +777,29 @@ src/structure/destination_info.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/structure/destination_info.c.s
 .PHONY : src/structure/destination_info.c.s
 
-src/structure/interface_table.o: src/structure/interface_table.c.o
-.PHONY : src/structure/interface_table.o
+src/structure/interface/interface_table.o: src/structure/interface/interface_table.c.o
+.PHONY : src/structure/interface/interface_table.o
 
 # target to build an object file
-src/structure/interface_table.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/structure/interface_table.c.o
-.PHONY : src/structure/interface_table.c.o
+src/structure/interface/interface_table.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/structure/interface/interface_table.c.o
+.PHONY : src/structure/interface/interface_table.c.o
 
-src/structure/interface_table.i: src/structure/interface_table.c.i
-.PHONY : src/structure/interface_table.i
+src/structure/interface/interface_table.i: src/structure/interface/interface_table.c.i
+.PHONY : src/structure/interface/interface_table.i
 
 # target to preprocess a source file
-src/structure/interface_table.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/structure/interface_table.c.i
-.PHONY : src/structure/interface_table.c.i
+src/structure/interface/interface_table.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/structure/interface/interface_table.c.i
+.PHONY : src/structure/interface/interface_table.c.i
 
-src/structure/interface_table.s: src/structure/interface_table.c.s
-.PHONY : src/structure/interface_table.s
+src/structure/interface/interface_table.s: src/structure/interface/interface_table.c.s
+.PHONY : src/structure/interface/interface_table.s
 
 # target to generate assembly for a file
-src/structure/interface_table.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/structure/interface_table.c.s
-.PHONY : src/structure/interface_table.c.s
+src/structure/interface/interface_table.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/lkm.dir/build.make CMakeFiles/lkm.dir/src/structure/interface/interface_table.c.s
+.PHONY : src/structure/interface/interface_table.c.s
 
 src/structure/namespace.o: src/structure/namespace.c.o
 .PHONY : src/structure/namespace.o
@@ -882,6 +1002,18 @@ help:
 	@echo "... src/hooks/ip6_rcv_finish_core/impl.o"
 	@echo "... src/hooks/ip6_rcv_finish_core/impl.i"
 	@echo "... src/hooks/ip6_rcv_finish_core/impl.s"
+	@echo "... src/hooks/ip_append_data/impl.o"
+	@echo "... src/hooks/ip_append_data/impl.i"
+	@echo "... src/hooks/ip_append_data/impl.s"
+	@echo "... src/hooks/ip_make_skb/impl.o"
+	@echo "... src/hooks/ip_make_skb/impl.i"
+	@echo "... src/hooks/ip_make_skb/impl.s"
+	@echo "... src/hooks/ip_send_skb/impl.o"
+	@echo "... src/hooks/ip_send_skb/impl.i"
+	@echo "... src/hooks/ip_send_skb/impl.s"
+	@echo "... src/hooks/ip_setup_cork/impl.o"
+	@echo "... src/hooks/ip_setup_cork/impl.i"
+	@echo "... src/hooks/ip_setup_cork/impl.s"
 	@echo "... src/hooks/ipv6_rcv/hook.o"
 	@echo "... src/hooks/ipv6_rcv/hook.i"
 	@echo "... src/hooks/ipv6_rcv/hook.s"
@@ -903,6 +1035,9 @@ help:
 	@echo "... src/hooks/tcp_v4_rcv/impl.o"
 	@echo "... src/hooks/tcp_v4_rcv/impl.i"
 	@echo "... src/hooks/tcp_v4_rcv/impl.s"
+	@echo "... src/hooks/udp_send_skb/impl.o"
+	@echo "... src/hooks/udp_send_skb/impl.i"
+	@echo "... src/hooks/udp_send_skb/impl.s"
 	@echo "... src/hooks/udp_sendmsg/hook.o"
 	@echo "... src/hooks/udp_sendmsg/hook.i"
 	@echo "... src/hooks/udp_sendmsg/hook.s"
@@ -924,9 +1059,9 @@ help:
 	@echo "... src/structure/destination_info.o"
 	@echo "... src/structure/destination_info.i"
 	@echo "... src/structure/destination_info.s"
-	@echo "... src/structure/interface_table.o"
-	@echo "... src/structure/interface_table.i"
-	@echo "... src/structure/interface_table.s"
+	@echo "... src/structure/interface/interface_table.o"
+	@echo "... src/structure/interface/interface_table.i"
+	@echo "... src/structure/interface/interface_table.s"
 	@echo "... src/structure/namespace.o"
 	@echo "... src/structure/namespace.i"
 	@echo "... src/structure/namespace.s"

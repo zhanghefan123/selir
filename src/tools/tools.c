@@ -69,7 +69,7 @@ bool TEST_RESOLVED(void* pointer, const char* function_name){
  * @param length 总共要解析的函数
  * @return
  */
-bool resolve_functions_addresses(void** functions, const char** function_names, int length){
+bool resolve_functions_addresses(void** functions, char** function_names, int length){
     int index;
     bool resolve_result;
     for(index = 0; index < length; index ++){

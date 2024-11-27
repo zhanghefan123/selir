@@ -18,12 +18,12 @@ selir-objs := \
 	src/api/netlink_router.o \
 	src/api/netlink_handler.o \
 	src/api/option_resolver.o \
-	src/structure/namespace.o \
+	src/structure/namespace/namespace.o \
 	src/structure/crypto/crypto_structure.o \
 	src/structure/crypto/bloom_filter.o \
-	src/structure/destination_info.o \
+	src/structure/routing/destination_info.o \
 	src/structure/path_validation_structure.o \
-	src/structure/interface_table.o \
+	src/structure/interface/interface_table.o \
 	src/structure/routing/array_based_routing_table.o \
 	src/structure/routing/hash_based_routing_table.o \
 	src/structure/routing/routing_calc_res.o \
@@ -32,10 +32,15 @@ selir-objs := \
 	src/hooks/ipv6_rcv/impl.o \
 	src/hooks/ipv6_rcv_finish/impl.o \
 	src/hooks/ip6_rcv_finish_core/impl.o \
+	src/hooks/ip_append_data/impl.o \
 	src/hooks/tcp_rcv_established/impl.o \
 	src/hooks/tcp_v4_do_rcv/impl.o \
+	src/hooks/ip_make_skb/impl.o \
+	src/hooks/ip_send_skb/impl.o \
+	src/hooks/ip_setup_cork/impl.o \
 	src/hooks/tcp_v4_rcv/impl.o \
 	src/hooks/tcp_v4_rcv/hook.o \
+	src/hooks/udp_send_skb/impl.o \
 	src/hooks/udp_sendmsg/impl.o \
 	src/hooks/udp_sendmsg/hook.o \
 	src/prepare/resolve_function_address.o \
@@ -49,7 +54,7 @@ OUTPUT_DIR = "./build"
 
 # 这个必须要是 headers 的绝对路径才能行
 #ccflags-y += -I/home/zhf/Projects/linux/loadable_kernel_module/headers
-ccflags-y += -I/home/zhf/Projects/srv6/linux/selir/headers
+ccflags-y += -I/home/zhf/Projects/linux/selir/headers
 
 
 all: compile

@@ -21,10 +21,11 @@ bool resolve_ip6_rcv_finish_core_inner_functions_address(void){
     bool resolve_result;
     // 所有的待初始化的函数指针构成的数组
     void* functions[3];
-    const char* function_names[3];
-    function_names[0] = tcp_v6_early_demux_str;
-    function_names[1] = udp_v6_early_demux_str;
-    function_names[2] = ip6_route_input_str;
+    char* function_names[3] = {
+            tcp_v6_early_demux_str,
+            udp_v6_early_demux_str,
+            ip6_route_input_str
+    };
     resolve_result = resolve_functions_addresses(functions, function_names, 3);
     original_tcp_v6_early_demux = functions[0];
     original_udp_v6_early_demux = functions[1];

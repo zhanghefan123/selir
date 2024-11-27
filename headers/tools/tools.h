@@ -2,12 +2,17 @@
 #define ZEUSNET_KERNEL_TOOLS_H
 #include <net/route.h>
 #define LOG_PREFIX "[zeusnet's kernel info]:"
+// 1. LOG 相关的 tools
 void LOG_WITH_PREFIX(char* msg);
 void LOG_WITH_EDGE(char* msg);
-bool TEST_RESOLVED(void* pointer, const char* function_name);
-bool resolve_functions_addresses(void** functions, const char** function_names, int length);
 void printk_binary_u32(u32 n);
 void printk_binary_u8(u8 n);
 void print_hash_or_hmac_result(unsigned char* output, int length);
+
+// 2. 解析函数地址相关的 tools
+bool TEST_RESOLVED(void* pointer, const char* function_name);
+bool resolve_functions_addresses(void** functions, char** function_names, int length);
+
+// 3. 内存相关的 tools
 void memory_or(unsigned char* source, unsigned char* target, int length);
 #endif

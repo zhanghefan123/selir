@@ -28,7 +28,7 @@ add_executable(lkm
         src/structure/crypto/bloom_filter.c
         src/structure/destination_info.c
         src/structure/path_validation_structure.c
-        src/structure/interface_table.c
+        src/structure/interface/interface_table.c
         src/structure/routing/array_based_routing_table.c
         src/structure/routing/hash_based_routing_table.c
         src/structure/routing/routing_calc_res.c
@@ -37,10 +37,15 @@ add_executable(lkm
         src/hooks/ipv6_rcv/impl.c
         src/hooks/ipv6_rcv_finish/impl.c
         src/hooks/ip6_rcv_finish_core/impl.c
+        src/hooks/ip_append_data/impl.c
+        src/hooks/ip_make_skb/impl.c
+        src/hooks/ip_send_skb/impl.c
+        src/hooks/ip_setup_cork/impl.c
         src/hooks/tcp_v4_rcv/hook.c
         src/hooks/tcp_v4_rcv/impl.c
         src/hooks/tcp_v4_do_rcv/impl.c
         src/hooks/tcp_rcv_established/impl.c
+        src/hooks/udp_send_skb/impl.c
         src/hooks/udp_sendmsg/hook.c
         src/hooks/udp_sendmsg/impl.c
         src/prepare/resolve_function_address.c

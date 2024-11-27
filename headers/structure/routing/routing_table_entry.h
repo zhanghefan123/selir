@@ -5,7 +5,7 @@
 #ifndef LOADABLE_KERNEL_MODULE_ROUTING_TABLE_ENTRY_H
 #define LOADABLE_KERNEL_MODULE_ROUTING_TABLE_ENTRY_H
 #include <net/ip.h>
-#include "structure/interface_table.h"
+#include "structure/interface/interface_table.h"
 // 1. 路由表项
 struct RoutingTableEntry {
     int source_id;       // 源节点的 id

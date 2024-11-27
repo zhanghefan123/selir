@@ -27,13 +27,15 @@ int routing_entry_equal_judgement(struct RoutingTableEntry *entry, int source_id
 
 int add_entry_to_hbrt(struct HashBasedRoutingTable *hbrt, struct RoutingTableEntry *routing_table_entry);
 
-int free_hash_based_routing_table(struct HashBasedRoutingTable *hbrt);
+int free_hbrt(struct HashBasedRoutingTable *hbrt);
 
 struct RoutingTableEntry *find_sre_in_hbrt(struct HashBasedRoutingTable *hbrt, int source, int destination);
 
 struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct HashBasedRoutingTable *hbrt,
                                                                struct DestinationInfo *destination_info,
+                                                               int routing_type,
                                                                int bf_effective_bytes,
-                                                               int source_node_id);
+                                                               int source_node_id,
+                                                               int number_of_interfaces);
 
 #endif //LOADABLE_KERNEL_MODULE_HASH_BASED_ROUTING_TABLE_H
