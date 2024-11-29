@@ -24,7 +24,7 @@ asmlinkage int hook_udp_sendmsg(struct sock* sk, struct msghdr* msg, size_t len)
  * 进行 hook
  */
 void add_udp_sendmsg_to_hook(void) {
-    hooks[number_of_hook].name = "tcp_v4_rcv";
+    hooks[number_of_hook].name = "udp_sendmsg";
     hooks[number_of_hook].function = hook_udp_sendmsg,
     hooks[number_of_hook].original = &orig_udp_sendmsg;
     number_of_hook += 1;

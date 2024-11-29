@@ -178,7 +178,11 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
     // 3.2 从 current_ns 之中获取 path_validation_structure
     struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
     // 3.3 创建 path validation structure
-    initialize_routing_and_forwarding_table(pvs, routing_table_type, number_of_routes_or_buckets, number_of_interfaces);
+    initialize_routing_and_forwarding_table(pvs,
+                                            routing_table_type,
+                                            routing_type,
+                                            number_of_routes_or_buckets,
+                                            number_of_interfaces);
     // -----------------------------------------------------------------
 
     // 4. 准备进行消息的返回

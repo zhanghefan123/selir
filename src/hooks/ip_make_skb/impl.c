@@ -8,13 +8,11 @@
 
 char *ip_idents_str = "ip_idents";
 char *ip_tstamps_str = "ip_tstamps";
-char *ip_idents_mask_pointer_str = "ip_idents_mask_pointer";
 char *ip_options_build_str = "ip_options_build";
 char *icmp_out_count_str = "icmp_out_count";
 
 static atomic_t *ip_idents __read_mostly;
 static u32 *ip_tstamps __read_mostly;
-static u32 *ip_idents_mask_pointer __read_mostly;
 asmlinkage void (*orig_ip_options_build)(struct sk_buff *skb, struct ip_options *opt, __be32 daddr, struct rtable *rt);
 asmlinkage void (*orig_icmp_out_count)(struct net *net, unsigned char type);
 
@@ -28,20 +26,18 @@ bool resolve_ip_make_skb_inner_functions_address(void) {
     // 解析结果
     bool resolve_result;
     // 所有的待初始化的函数的函数指针过程的数组
-    void *functions[5];
-    char *function_names[5] = {
+    void *functions[4];
+    char *function_names[4] = {
             ip_idents_str,
             ip_tstamps_str,
-            ip_idents_mask_pointer_str,
             ip_options_build_str,
             icmp_out_count_str,
     };
-    resolve_result = resolve_functions_addresses(functions, function_names, 5);
+    resolve_result = resolve_functions_addresses(functions, function_names, 4);
     ip_idents = functions[0];
     ip_tstamps = functions[1];
-    ip_idents_mask_pointer = functions[2];
-    orig_ip_options_build = functions[3];
-    orig_icmp_out_count = functions[4];
+    orig_ip_options_build = functions[2];
+    orig_icmp_out_count = functions[3];
     LOG_WITH_EDGE("end to resolve path_validation_make_skb inner functions address");
     return resolve_result;
 }
@@ -65,27 +61,6 @@ static void __ip_flush_pending_frames(struct sock *sk,
         kfree_skb(skb);
 
     ip_cork_release(cork);
-}
-
-static u32 ip_idents_reserve(u32 hash, int segs) {
-    u32 bucket, old, now = (u32) jiffies;
-    atomic_t * p_id;
-    u32 * p_tstamp;
-    u32 delta = 0;
-
-    bucket = hash & (*ip_idents_mask_pointer);
-    p_tstamp = ip_tstamps + bucket;
-    p_id = ip_idents + bucket;
-    old = READ_ONCE(*p_tstamp);
-
-    if (old != now && cmpxchg(p_tstamp, old, now) == old)
-        delta = prandom_u32_max(now - old);
-
-    /* If UBSAN reports an error there, please make sure your compiler
-     * supports -fno-strict-overflow before reporting it that was a bug
-     * in UBSAN, and it has been fixed in GCC-8.
-     */
-    return atomic_add_return(segs + delta, p_id) - segs;
 }
 
 static inline int ip_select_ttl(struct inet_sock *inet, struct dst_entry *dst) {

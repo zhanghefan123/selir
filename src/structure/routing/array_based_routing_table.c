@@ -23,10 +23,10 @@ struct ArrayBasedRoutingTable *init_abrt(int number_of_routes) {
  * @param abrt
  */
 void free_abrt(struct ArrayBasedRoutingTable *abrt) {
-    // 索引
-    int index;
     // 判断 abrt 是否为 NULL, 如果 NULL == abrt, 则返回
     if (NULL != abrt) {
+        // 索引
+        int index;
         // 判断 routes 是否为 NULL, 如果 NULL == routes 则返回
         if (NULL != abrt->routes) {
             // 遍历所有的路由进行释放
@@ -38,8 +38,10 @@ void free_abrt(struct ArrayBasedRoutingTable *abrt) {
         }
         kfree(abrt);
         abrt = NULL;
+        LOG_WITH_PREFIX("delete array based routing table successfully!");
+    } else {
+        LOG_WITH_PREFIX("array based routing table is NULL");
     }
-    LOG_WITH_PREFIX("delete array based routing table successfully!");
 }
 
 /**

@@ -137,6 +137,5 @@ int fh_install_hooks(struct ftrace_hook *hooks, size_t count) {
 
 void fh_remove_hooks(struct ftrace_hook *hooks, size_t count) {
     size_t i;
-
     for (i = 0; i < count; i++) fh_remove_hook(&hooks[i]);
 }

@@ -105,29 +105,34 @@ int add_entry_to_hbrt(struct HashBasedRoutingTable *hbrt, struct RoutingTableEnt
  * @return
  */
 int free_hbrt(struct HashBasedRoutingTable *hbrt) {
-    int index;
-    struct hlist_head *hash_bucket = NULL;
-    struct RoutingTableEntry *current_entry = NULL;
-    struct hlist_node *next;
-    for (index = 0; index < hbrt->bucket_count; index++) {
-        hash_bucket = &hbrt->bucket_array[index];
-        // 每一个 hash_bucket 都被初始化过了，所以不能为NULL
-        if (NULL == hash_bucket) {
-            LOG_WITH_PREFIX("hash bucket is null");
-            return -1;
+    // 这里首先判断要进行 free 的 hbrt 是否为 NULL
+    if(NULL != hbrt){
+        int index;
+        struct hlist_head *hash_bucket = NULL;
+        struct RoutingTableEntry *current_entry = NULL;
+        struct hlist_node *next;
+        for (index = 0; index < hbrt->bucket_count; index++) {
+            hash_bucket = &hbrt->bucket_array[index];
+            // 每一个 hash_bucket 都被初始化过了，所以不能为NULL
+            if (NULL == hash_bucket) {
+                LOG_WITH_PREFIX("hash bucket is null");
+                return -1;
+            }
+            hlist_for_each_entry_safe(current_entry, next, hash_bucket, pointer) {
+                hlist_del(&current_entry->pointer);
+                free_routing_table_entry(current_entry);
+            }
         }
-        hlist_for_each_entry_safe(current_entry, next, hash_bucket, pointer) {
-            hlist_del(&current_entry->pointer);
-            free_routing_table_entry(current_entry);
-        }
+        // 清空 head_pointer_list 引入的 memory 开销
+        kfree(hbrt->bucket_array);
+        hbrt->bucket_array = NULL;
+        // 释放 hbrt
+        kfree(hbrt);
+        hbrt = NULL;
+        LOG_WITH_PREFIX("delete hash based routing table successfully!");
+    } else {
+        LOG_WITH_PREFIX("hash based routing table is NULL");
     }
-    // 清空 head_pointer_list 引入的 memory 开销
-    kfree(hbrt->bucket_array);
-    hbrt->bucket_array = NULL;
-    // 释放 hbrt
-    kfree(hbrt);
-    hbrt = NULL;
-    LOG_WITH_PREFIX("delete hash based routing table successfully!");
     return 0;
 }
 
@@ -232,5 +237,4 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct HashBasedR
         LOG_WITH_PREFIX("unsupported routing type");
         return NULL;
     }
-
 }

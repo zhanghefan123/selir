@@ -18,9 +18,9 @@ int number_of_hook = 0;
 
 // 进行hook的安装
 int install_hook_functions(void){
-    add_ipv6_rcv_to_hook();
-    add_tcp_v4_rcv_to_hook();
-    add_udp_sendmsg_to_hook();
+    add_ipv6_rcv_to_hook(); // 进行 ipv6_rcv hook 的安装
+    add_tcp_v4_rcv_to_hook(); // 进行 tcp_v4_rcv hook 的安装
+    add_udp_sendmsg_to_hook();  // 进行 udp_sendmsg hook 的安装
     fh_install_hooks(hooks, number_of_hook);
     LOG_WITH_PREFIX("already install hooks");
     tidy();

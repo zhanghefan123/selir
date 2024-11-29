@@ -78,8 +78,10 @@ void delete_bloom_filter(struct BloomFilter *bf) {
             bf->bitset = NULL;
         }
         kfree(bf);
+        LOG_WITH_PREFIX("delete bloom filter");
+    } else {
+        LOG_WITH_PREFIX("bloom filter is NULL");
     }
-    LOG_WITH_PREFIX("delete bloom filter");
 }
 
 /**

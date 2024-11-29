@@ -11,9 +11,12 @@
  * @param current_ns
  */
 struct PathValidationStructure *initialize_pvs(void) {
-    struct PathValidationStructure *path_validation_structure = (struct PathValidationStructure *) kmalloc(
+    struct PathValidationStructure *pvs = (struct PathValidationStructure *) kmalloc(
             sizeof(struct PathValidationStructure), GFP_KERNEL);
-    return path_validation_structure;
+    pvs->abrt = NULL;
+    pvs->hbrt = NULL;
+    pvs->abit = NULL;
+    return pvs;
 }
 
 
@@ -22,15 +25,10 @@ struct PathValidationStructure *initialize_pvs(void) {
  * @param path_validation_structure 路径验证数据结构
  */
 void free_pvs(struct PathValidationStructure *pvs) {
-    if (pvs->routing_table_type == ARRAY_BASED_ROUTING_TABLE_TYPE) {
-        // 进行基于数组路由表的释放
-        free_abrt(pvs->abrt);
-    } else if (pvs->routing_table_type == HASH_BASED_ROUTING_TABLE_TYPE) {
-        // 进行基于哈希的路由表的释放
-        free_hbrt(pvs->hbrt);
-    } else {
-        LOG_WITH_PREFIX("unknown routing table");
-    }
+    // 进行基于数组路由表的释放
+    free_abrt(pvs->abrt);
+    // 进行基于哈希的路由表的释放
+    free_hbrt(pvs->hbrt);
     // 进行基于数组的接口表的释放
     free_array_based_interface_table(pvs->abit);
     // 进行布隆过滤器的释放
