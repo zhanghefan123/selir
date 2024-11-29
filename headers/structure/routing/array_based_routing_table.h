@@ -29,7 +29,6 @@ void add_entry_to_abrt(struct ArrayBasedRoutingTable* abrt, struct RoutingTableE
 
 struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct ArrayBasedRoutingTable *abrt,
                                                                struct DestinationInfo *destination_info,
-                                                               int bf_effective_bytes,
-                                                               int number_of_interfaces);
+                                                               int bf_effective_bytes);
 
 #endif //LOADABLE_KERNEL_MODULE_ARRAY_BASED_ROUTING_TABLE_H

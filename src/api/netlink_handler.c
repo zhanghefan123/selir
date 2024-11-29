@@ -143,14 +143,13 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
     // 2. 参数的定义
     // -----------------------------------------------------------------
     int routing_table_type; // 路由表类型
-    int routing_type; // 路由的类型 -> 可能是
     int number_of_routes_or_buckets;   // 路由条数或者桶数
     int number_of_interfaces; // 接口数量
     // -----------------------------------------------------------------
 
     // 3. 准备进行消息的处理
     // -----------------------------------------------------------------
-    // 消息格式: routing_table_type, routing_type, number_of_routes, number_of_interfaces
+    // 消息格式: routing_table_type, number_of_routes, number_of_interfaces
     // 3.1 读取参数
     receive_buffer = recv_message(info);
     while (true) {
@@ -163,11 +162,9 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
             int variable_in_integer = (int) (simple_strtol(variable_in_str, NULL, 10));
             if (count == 0) {
                 routing_table_type = variable_in_integer;
-            } else if(count == 1) {
-                routing_type = variable_in_integer;
-            } else if (count == 2) {
+            } else if (count == 1) {
                 number_of_routes_or_buckets = variable_in_integer;
-            } else if (count == 3) {
+            } else if (count == 2) {
                 number_of_interfaces = variable_in_integer;
             } else {
                 return -EINVAL;
@@ -180,7 +177,6 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
     // 3.3 创建 path validation structure
     initialize_routing_and_forwarding_table(pvs,
                                             routing_table_type,
-                                            routing_type,
                                             number_of_routes_or_buckets,
                                             number_of_interfaces);
     // -----------------------------------------------------------------

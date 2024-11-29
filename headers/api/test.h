@@ -5,6 +5,8 @@
 #ifndef SELIR_TEST_H
 #define SELIR_TEST_H
 #include <net/ip.h>
+#define IP_NETWORK_TYPE 1
+#define LIR_NETWORK_TYPE 2
 void test_apis(void);
-bool test_if_lir_socket(struct sock* sk);
+int resolve_network_type(struct sock* sk);
 #endif //SELIR_TEST_H

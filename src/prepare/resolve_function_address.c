@@ -11,6 +11,7 @@
 #include "hooks/ip_make_skb/ip_make_skb.h"
 #include "hooks/udp_sendmsg/udp_sendmsg.h"
 #include "hooks/ip_append_data/ip_append_data.h"
+#include "hooks/inet_sendmsg/inet_sendmsg.h"
 
 /*
  * 使用 kallsyms_lookup_name 进行函数地址的查找
@@ -55,6 +56,16 @@ bool resolve_function_address(void){
     result = resolve_ip_append_data_inner_functions_address();
     if(!result){
         LOG_WITH_PREFIX("resolve ip_append_data failed");
+        return result;
+    }
+    result = resolve_inet_sendmsg_inner_functions_address();
+    if(!result){
+        LOG_WITH_PREFIX("resolve inet_sendmsg failed");
+        return result;
+    }
+    result = resolve_udp_sendmsg_inner_functions_address();
+    if(!result){
+        LOG_WITH_PREFIX("resolve udp_sendmsg failed");
         return result;
     }
     return result;

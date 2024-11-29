@@ -1,3 +1,0 @@
-/tmp/tmp.Vl193T48Gs/cmake-build-debug--10134148207/CMakeFiles/lkm.dir
-/tmp/tmp.Vl193T48Gs/cmake-build-debug--10134148207/CMakeFiles/edit_cache.dir
-/tmp/tmp.Vl193T48Gs/cmake-build-debug--10134148207/CMakeFiles/rebuild_cache.dir

@@ -16,9 +16,7 @@ int self_defined_ip_setup_cork(struct sock *sk, struct inet_cork *cork, struct i
     if (unlikely(!rt))
         return -EFAULT;
 
-    /*
-     * setup for corking.
-     */
+    // original code
     opt = ipc->opt;
     if (opt) {
         if (!cork->opt) {

@@ -15,8 +15,6 @@ struct PathValidationStructure {
     int node_id;
     // 路由表的类型
     int routing_table_type;
-    // 路由的类型 (unicast/multicast)
-    int routing_type;
     // 基于数组的路由表
     struct ArrayBasedRoutingTable *abrt;
     // 基于哈希的路由表
@@ -34,7 +32,6 @@ void free_pvs(struct PathValidationStructure *pvs);
 
 void initialize_routing_and_forwarding_table(struct PathValidationStructure *pvs,
                                              int routing_table_type,
-                                             int routing_type,
                                              int number_of_routes_or_buckets,
                                              int number_of_interfaces);
 

@@ -74,27 +74,18 @@ void add_entry_to_abrt(struct ArrayBasedRoutingTable* abrt, struct RoutingTableE
  */
 struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct ArrayBasedRoutingTable *abrt,
                                                                struct DestinationInfo *destination_info,
-                                                               int bf_effective_bytes,
-                                                               int number_of_output_interfaces) {
+                                                               int bf_effective_bytes) {
     // 创建 rcr
-    struct RoutingCalcRes *rcr = init_rcr(destination_info,
-                                          bf_effective_bytes,
-                                          number_of_output_interfaces);
-    // 索引
-    int index;
-    // 遍历所有的目的节点 id
-    for (index = 0; index < destination_info->number_of_destinations; index++) {
-        // 通过 id 进行路由表的查找
-        struct RoutingTableEntry *sre = find_sre_in_abrt(abrt, destination_info->destinations[index]);
-        // 相应的出接口
-        struct InterfaceTableEntry *ite = sre->output_interface;
-        // 设置相应的出接口
-        if (NULL == rcr->output_interfaces[ite->index]) {
-            rcr->output_interfaces[ite->index] = ite->interface;
-        }
-        // 进行布隆过滤器底层的数组的更新
-        unsigned char *bloom_filter_bit_set = rcr->bitsets + (ite->index * bf_effective_bytes);
-        memory_or(bloom_filter_bit_set, sre->bitset, bf_effective_bytes);
-    }
+    struct RoutingCalcRes *rcr = init_rcr(bf_effective_bytes);
+
+    // 只允许单个目的节点
+    struct RoutingTableEntry* sre = find_sre_in_abrt(abrt, destination_info->destinations[0]);
+
+    // 设置出接口
+    rcr->output_interface = sre->output_interface->interface;
+
+    // 进行按位或运算
+    memory_or(rcr->bitset, sre->bitset, bf_effective_bytes);
+
     return rcr;
 }

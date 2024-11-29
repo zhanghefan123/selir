@@ -15,6 +15,10 @@ void test_apis(void){
  * @param sk socket
  * @return
  */
-bool test_if_lir_socket(struct sock* sk){
-    return sock_flag(sk, SOCK_DBG);
+int resolve_network_type(struct sock* sk){
+    if (sock_flag(sk, SOCK_DBG)){
+        return LIR_NETWORK_TYPE;
+    } else {
+        return IP_NETWORK_TYPE;
+    }
 }

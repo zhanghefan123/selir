@@ -8,6 +8,7 @@ void LOG_WITH_EDGE(char* msg);
 void printk_binary_u32(u32 n);
 void printk_binary_u8(u8 n);
 void print_hash_or_hmac_result(unsigned char* output, int length);
+void print_ipv4_address(__be32 addr);
 
 // 2. 解析函数地址相关的 tools
 bool TEST_RESOLVED(void* pointer, const char* function_name);

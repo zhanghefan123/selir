@@ -23,16 +23,19 @@ add_executable(lkm
         src/api/netlink_router.c
         src/api/netlink_handler.c
         src/api/option_resolver.c
-        src/structure/namespace.c
+
         src/structure/crypto/crypto_structure.c
         src/structure/crypto/bloom_filter.c
-        src/structure/destination_info.c
         src/structure/path_validation_structure.c
         src/structure/interface/interface_table.c
+        src/structure/namespace/namespace.c
+        src/structure/routing/destination_info.c
         src/structure/routing/array_based_routing_table.c
         src/structure/routing/hash_based_routing_table.c
         src/structure/routing/routing_calc_res.c
         src/structure/routing/routing_table_entry.c
+        src/hooks/inet_sendmsg/impl.c
+        src/hooks/inet_sendmsg/hook.c
         src/hooks/ipv6_rcv/hook.c
         src/hooks/ipv6_rcv/impl.c
         src/hooks/ipv6_rcv_finish/impl.c

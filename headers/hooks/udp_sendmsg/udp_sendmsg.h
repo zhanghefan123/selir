@@ -11,7 +11,7 @@ bool resolve_udp_sendmsg_inner_functions(void);
 
 int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len);
 
-void add_udp_sendmsg_to_hook(void);
+bool resolve_udp_sendmsg_inner_functions_address(void);
 
 extern struct ftrace_hook hooks[MAXIMUM_SUPPORTED_HOOK_FUNCTIONS];
 extern int number_of_hook;

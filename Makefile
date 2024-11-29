@@ -28,6 +28,8 @@ selir-objs := \
 	src/structure/routing/hash_based_routing_table.o \
 	src/structure/routing/routing_calc_res.o \
 	src/structure/routing/routing_table_entry.o \
+	src/hooks/inet_sendmsg/impl.o \
+	src/hooks/inet_sendmsg/hook.o \
 	src/hooks/ipv6_rcv/hook.o \
 	src/hooks/ipv6_rcv/impl.o \
 	src/hooks/ipv6_rcv_finish/impl.o \
@@ -53,8 +55,8 @@ selir-objs := \
 OUTPUT_DIR = "./build"
 
 # 这个必须要是 headers 的绝对路径才能行
-#ccflags-y += -I/home/zhf/Projects/linux/loadable_kernel_module/headers
-ccflags-y += -I/home/zhf/Projects/linux/selir/headers
+ccflags-y += -I/home/zhf/Projects/srv6/linux/selir/headers
+#ccflags-y += -I/home/zhf/Projects/linux/selir/headers
 
 
 all: compile

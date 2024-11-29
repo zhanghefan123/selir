@@ -41,6 +41,13 @@ void LOG_WITH_EDGE(char* msg){
     LOG_WITH_PREFIX(final_output_msg);
 }
 
+/**
+ * 进行 ip 地址的打印
+ * @param addr ip 地址
+ */
+void print_ipv4_address(__be32 addr){
+    printk(KERN_EMERG "address = %pI4", &addr);
+}
 
 /**
  * 检查是否成功解析了函数的指针

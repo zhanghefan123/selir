@@ -1,6 +1,0 @@
-/usr/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" -S /tmp/tmp.Vl193T48Gs -B /tmp/tmp.Vl193T48Gs/cmake-build-debug--10134148207
--- Kernel release: 5.19.0-41-generic
--- Kernel headers: /usr/src/linux-headers-5.19.0-41-generic
--- Configuring done
--- Generating done
--- Build files have been written to: /tmp/tmp.Vl193T48Gs/cmake-build-debug--10134148207

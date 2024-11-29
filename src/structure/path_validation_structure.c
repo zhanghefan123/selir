@@ -43,7 +43,6 @@ void free_pvs(struct PathValidationStructure *pvs) {
  */
 void initialize_routing_and_forwarding_table(struct PathValidationStructure *pvs,
                                              int routing_table_type,
-                                             int routing_type,
                                              int number_of_routes_or_buckets,
                                              int number_of_interfaces) {
     if (ARRAY_BASED_ROUTING_TABLE_TYPE == routing_table_type) {
@@ -53,6 +52,5 @@ void initialize_routing_and_forwarding_table(struct PathValidationStructure *pvs
         pvs->hbrt = initialize_hbrt(number_of_routes_or_buckets);
         pvs->routing_table_type = HASH_BASED_ROUTING_TABLE_TYPE;
     }
-    pvs->routing_type = routing_type;
     pvs->abit = initialize_array_based_interface_table(number_of_interfaces);
 }
