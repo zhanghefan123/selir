@@ -7,12 +7,14 @@
  * @param number_of_output_interfaces 出接口数量
  * @return
  */
-struct RoutingCalcRes *init_rcr(int bf_effective_bytes) {
+struct RoutingCalcRes *init_rcr(int source, struct DestinationInfo* destination_info, struct PathValidationStructure* pvs) {
     // 创建路由计算结果
     struct RoutingCalcRes *route_calculation_result = (struct RoutingCalcRes *) (kmalloc(
             sizeof(struct RoutingCalcRes), GFP_KERNEL));
-    route_calculation_result->bitset = (unsigned char *) (kmalloc(bf_effective_bytes, GFP_KERNEL));
+    route_calculation_result->bitset = (unsigned char *) (kmalloc(pvs->bloom_filter->effective_bytes, GFP_KERNEL));
     route_calculation_result->output_interface = NULL;
+    route_calculation_result->source = source;
+    route_calculation_result->destination_info = destination_info;
     return route_calculation_result;
 }
 

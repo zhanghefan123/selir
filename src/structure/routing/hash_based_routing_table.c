@@ -170,14 +170,14 @@ struct RoutingTableEntry *find_sre_in_hbrt(struct HashBasedRoutingTable *hbrt, i
  * @return
  */
 struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct HashBasedRoutingTable *hbrt,
+                                                               int source_node_id,
                                                                struct DestinationInfo *destination_info,
-                                                               int bf_effective_bytes,
-                                                               int source_node_id) {
+                                                               struct PathValidationStructure* pvs) {
     // 1.索引
     int index;
 
     // 2.创建 rcr
-    struct RoutingCalcRes *rcr = init_rcr(bf_effective_bytes);
+    struct RoutingCalcRes *rcr = init_rcr(source_node_id, destination_info, pvs);
 
     // 3.使用基于主节点的方式
     // -----------------------------------------------------------------------------------------
@@ -190,7 +190,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct HashBasedR
 
     // 2. 更新出接口和 bitset
     rcr->output_interface = source_to_primary->output_interface->interface;
-    memory_or(rcr->bitset, source_to_primary->bitset, bf_effective_bytes);
+    memory_or(rcr->bitset, source_to_primary->bitset, pvs->bloom_filter->effective_bytes);
 
     // 3. 接着找到主节点到其他节点的路由
     for (index = 1; index < destination_info->number_of_destinations; index++) {
@@ -199,7 +199,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct HashBasedR
                                                                       primaryNodeId,
                                                                       otherNodeId);
         // 进行 bitset 的更新
-        memory_or(rcr->bitset, primary_to_other->bitset, bf_effective_bytes);
+        memory_or(rcr->bitset, primary_to_other->bitset, pvs->bloom_filter->effective_bytes);
     }
 
     // 4. 进行结果的返回

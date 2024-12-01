@@ -4,6 +4,8 @@
 #include "hooks/ip_make_skb/ip_make_skb.h"
 #include "hooks/ip_setup_cork/ip_setup_cork.h"
 #include "hooks/ip_append_data/ip_append_data.h"
+#include "structure/routing/routing_calc_res.h"
+#include "structure/path_validation_header.h"
 
 
 char *ip_idents_str = "ip_idents";
@@ -99,8 +101,9 @@ struct sk_buff *self_defined_ip_make_skb(struct sock *sk,
                                          int getfrag(void *from, char *to, int offset,
                                                      int len, int odd, struct sk_buff *skb),
                                          void *from, int length, int transhdrlen,
-                                         struct ipcm_cookie *ipc, struct rtable **rtp,
-                                         struct inet_cork *cork, unsigned int flags) {
+                                         struct ipcm_cookie *ipc,
+                                         struct inet_cork *cork, unsigned int flags,
+                                         struct RoutingCalcRes* rcr) {
     struct sk_buff_head queue;
     int err;
 
@@ -112,7 +115,7 @@ struct sk_buff *self_defined_ip_make_skb(struct sock *sk,
     cork->flags = 0;
     cork->addr = 0;
     cork->opt = NULL;
-    err = self_defined_ip_setup_cork(sk, cork, ipc, rtp);
+    err = self_defined_ip_setup_cork(sk, cork, ipc, rcr);
     if (err)
         return ERR_PTR(err);
 
@@ -124,7 +127,7 @@ struct sk_buff *self_defined_ip_make_skb(struct sock *sk,
         return ERR_PTR(err);
     }
 
-    return self_defined__ip_make_skb(sk, fl4, &queue, cork);
+    return self_defined__ip_make_skb(sk, fl4, &queue, cork, rcr);
 }
 
 
@@ -139,14 +142,15 @@ struct sk_buff *self_defined_ip_make_skb(struct sock *sk,
 struct sk_buff *self_defined__ip_make_skb(struct sock *sk,
                                           struct flowi4 *fl4,
                                           struct sk_buff_head *queue,
-                                          struct inet_cork *cork) {
+                                          struct inet_cork *cork,
+                                          struct RoutingCalcRes* rcr) {
     struct sk_buff *skb, *tmp_skb;
     struct sk_buff **tail_skb;
     struct inet_sock *inet = inet_sk(sk);
     struct net *net = sock_net(sk);
     struct ip_options *opt = NULL;
-    struct rtable *rt = (struct rtable *) cork->dst;
-    struct iphdr *iph;
+    struct PathValidationHeader *pvh;
+
     __be16 df = 0;
     __u8 ttl;
 
@@ -180,28 +184,19 @@ struct sk_buff *self_defined__ip_make_skb(struct sock *sk,
      * locally. */
     if (inet->pmtudisc == IP_PMTUDISC_DO ||
         inet->pmtudisc == IP_PMTUDISC_PROBE ||
-        (skb->len <= dst_mtu(&rt->dst) &&
-         ip_dont_fragment(sk, &rt->dst)))
+        (skb->len <= rcr->output_interface->mtu))
         df = htons(IP_DF);
+    ttl = READ_ONCE(net->ipv4.sysctl_ip_default_ttl);
 
-    if (cork->flags & IPCORK_OPT)
-        opt = cork->opt;
+    pvh = pvh_hdr(skb); // 创建 header
+    pvh->version = 5; // 版本
+    pvh->protocol = sk->sk_protocol; // 上层协议
+    pvh->frag_off = df; // 是否进行分片
+    pvh->ttl = ttl; // ttl
+    pvh->source = rcr->source; // 设置源
+    pvh->bf_len = rcr->pvs->bloom_filter->effective_bytes; // bf 有效字节数
 
-    if (cork->ttl != 0)
-        ttl = cork->ttl;
-    else if (rt->rt_type == RTN_MULTICAST)
-        ttl = inet->mc_ttl;
-    else
-        ttl = ip_select_ttl(inet, &rt->dst);
 
-    iph = ip_hdr(skb);
-    iph->version = 4;
-    iph->ihl = 5;
-    iph->tos = (cork->tos != -1) ? cork->tos : inet->tos;
-    iph->frag_off = df;
-    iph->ttl = ttl;
-    iph->protocol = sk->sk_protocol;
-    ip_copy_addrs(iph, fl4);
     ip_select_ident(net, skb, sk);
 
     if (opt) {

@@ -1,6 +1,7 @@
 #include <net/udp.h>
 #include <net/udplite.h>
 #include <linux/bpf-cgroup.h>
+#include <linux/inetdevice.h>
 
 #include "api/test.h"
 #include "tools/tools.h"
@@ -53,7 +54,7 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     struct flowi4 *fl4;
     int ulen = len;
     struct ipcm_cookie ipc;
-    struct rtable *rt = NULL;
+    //    struct rtable *rt = NULL;  original code
     int free = 0;
     int connected = 0;
     __be32 daddr, faddr, saddr;
@@ -87,19 +88,19 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     // -----------------------------------------------------
     if (pvs->routing_table_type == ARRAY_BASED_ROUTING_TABLE_TYPE) {
         rcr = construct_rcr_with_dest_info_under_abrt(pvs->abrt,
+                                                      pvs->node_id,
                                                       destination_info,
-                                                      (int)(pvs->bloom_filter->effective_bytes));
+                                                      pvs);
     } else if (pvs->routing_table_type == HASH_BASED_ROUTING_TABLE_TYPE) {
         rcr = construct_rcr_with_dest_info_under_hbrt(pvs->hbrt,
+                                                      pvs->node_id,
                                                       destination_info,
-                                                      (int)(pvs->bloom_filter->effective_bytes),
-                                                      pvs->node_id);
+                                                      pvs);
     } else {
         LOG_WITH_PREFIX("unsupported routing table type");
         return -EOPNOTSUPP;
     }
-    free_rcr(rcr);
-    free_destination_info(destination_info);
+
     // -----------------------------------------------------
 
     // 当长度超大, 返回消息大小错误信息
@@ -119,20 +120,7 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
 
     fl4 = &inet->cork.fl.u.ip4;
 
-    // 在以超快的速度发送的时候这里面的代码均没有被调用 (uncalled)
-    // -----------------------------------------------------
-    if (up->pending) {
-        lock_sock(sk);
-        if (likely(up->pending)) {
-            if (unlikely(up->pending != AF_INET)) {
-                release_sock(sk);
-                return -EINVAL;
-            }
-            goto do_append_data;
-        }
-        release_sock(sk);
-    }
-    // -----------------------------------------------------
+
     ulen += sizeof(struct udphdr); // ulen 应该是用户数据大小, ulen + udp 首部 = 应用层 + 传输层大小
 
     // 验证地址
@@ -158,17 +146,6 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
         // 如果目的端口为0, 则返回错误
         if (dport == 0)
             return -EINVAL;
-    } else {
-        // 当 usin 为 NULL 时，说明没有提供明确的目标地址信息（msg->msg_name 不包含目标地址），此时系统会使用已经存在的连接信息来决定目标地址和端口
-        // 比如当 udp 处于连接状态的时候
-        if (sk->sk_state != TCP_ESTABLISHED)
-            return -EDESTADDRREQ;
-        daddr = inet->inet_daddr;
-        dport = inet->inet_dport;
-        /* Open fast path for connected socket.
-           Route will not be used, if at least one option is set.
-         */
-        connected = 1;
     }
     // -----------------------------------------------------
 
@@ -176,42 +153,6 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     // -----------------------------------------------------
     ipcm_init_sk(&ipc, inet);
     ipc.gso_size = READ_ONCE(up->gso_size);
-    // -----------------------------------------------------
-
-    // 在以超快的速度发送的时候这里面的代码均没有被调用 (uncalled)
-    // 这是 struct msghdr 结构体中的一个字段，它表示消息中附加的控制数据（CMSG）的长度.
-    // 如果该值非零，表示有附加的控制消息存在。控制消息通常用于传递一些与数据包发送相关的附加参数（如 GSO、大数据包分片、路由选项等）.
-    // -----------------------------------------------------
-    if (msg->msg_controllen) {
-        err = udp_cmsg_send(sk, msg, &ipc.gso_size);
-        if (err > 0)
-            err = orig_ip_cmsg_send(sk, msg, &ipc, sk->sk_family == AF_INET6);
-        if (unlikely(err < 0)) {
-            kfree(ipc.opt);
-            return err;
-        }
-        if (ipc.opt)
-            free = 1;
-        connected = 0;
-    }
-    // -----------------------------------------------------
-
-    // (original code) 进行选项的处理, 不管在有没有 socket 配置选项的情况下, 都会进入
-    // -----------------------------------------------------
-    /*
-    if (!ipc.opt) {
-        // lir 不用执行这一段逻辑, 原 ip 执行这一段逻辑
-        struct ip_options_rcu *inet_opt;
-        rcu_read_lock();
-        inet_opt = rcu_dereference(inet->inet_opt);
-        if (inet_opt) {
-            memcpy(&opt_copy, inet_opt,
-                   sizeof(*inet_opt) + inet_opt->opt.optlen);
-            ipc.opt = &opt_copy.opt;
-        }
-        rcu_read_unlock();
-    }
-     */
     // -----------------------------------------------------
 
     // 这段代码主要处理的是通过 BPF（Berkeley Packet Filter）程序对 UDP 数据包进行过滤和处理
@@ -301,61 +242,26 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
         }
     }
 
-    // 如果是处于连接的状态 -> 直接从缓存之中拿路由
+    // 如果是处于连接的状态 -> 直接从缓存之中拿路由 original code (uncalled)
+    /*
     if (connected)
         rt = (struct rtable *) sk_dst_check(sk, 0); // 调用 sk_get_dest 拿到 struct dst_entry
+    */
 
     // 基本都会进入到这里进行路由的计算 (called)
     // ----------------------------------------------------------------------------
-    if (!rt) {
-        LOG_WITH_PREFIX("without route");
-        struct net *net = sock_net(sk);
-        __u8 flow_flags = inet_sk_flowi_flags(sk);
+    struct net *net = sock_net(sk);
+    __u8 flow_flags = inet_sk_flowi_flags(sk);
 
-        fl4 = &fl4_stack;
+    fl4 = &fl4_stack;
 
-        // 进行字段的初始化
-        /*
-        fl4->flowi4_oif = oif; (*)
-        fl4->flowi4_iif = LOOPBACK_IFINDEX; (*)
-        fl4->flowi4_l3mdev = 0;
-        fl4->flowi4_mark = mark;
-        fl4->flowi4_tos = tos;
-        fl4->flowi4_scope = scope; (*)
-        fl4->flowi4_proto = proto; (*)
-        fl4->flowi4_flags = flags; (*)
-        fl4->flowi4_secid = 0;
-        fl4->flowi4_tun_key.tun_id = 0;
-        fl4->flowi4_uid = uid;
-        fl4->daddr = daddr; (*)
-        fl4->saddr = saddr; (*)
-        fl4->fl4_dport = dport; (*)
-        fl4->fl4_sport = sport; (*)
-        fl4->flowi4_multipath_hash = 0;
-         */
-        flowi4_init_output(fl4, ipc.oif, ipc.sockc.mark, tos,
-                           RT_SCOPE_UNIVERSE, sk->sk_protocol,
-                           flow_flags,
-                           faddr, saddr, dport, inet->inet_sport,
-                           sk->sk_uid);
+    flowi4_init_output(fl4, ipc.oif, ipc.sockc.mark, tos,
+                       RT_SCOPE_UNIVERSE, sk->sk_protocol,
+                       flow_flags,
+                       faddr, saddr, dport, inet->inet_sport,
+                       sk->sk_uid);
 
-        security_sk_classify_flow(sk, flowi4_to_flowi_common(fl4));
-        rt = ip_route_output_flow(net, fl4, sk);
-        if (IS_ERR(rt)) {
-            err = PTR_ERR(rt);
-            rt = NULL;
-            if (err == -ENETUNREACH)
-                IP_INC_STATS(net, IPSTATS_MIB_OUTNOROUTES);
-            goto out;
-        }
-
-        err = -EACCES;
-        if ((rt->rt_flags & RTCF_BROADCAST) &&
-            !sock_flag(sk, SOCK_BROADCAST))
-            goto out;
-        if (connected)
-            sk_dst_set(sk, dst_clone(&rt->dst));
-    }
+    security_sk_classify_flow(sk, flowi4_to_flowi_common(fl4));
     // ----------------------------------------------------------------------------
 
     // uncalled
@@ -367,7 +273,7 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     // ----------------------------------------------------------------------------
     back_from_confirm:
 
-    saddr = fl4->saddr; // 当路由过程完成了之后才能获取源地址
+    saddr = rcr->output_interface->ip_ptr->ifa_list->ifa_address;
     //    printk(KERN_EMERG "after routing saddr = %pI4", &saddr); // after routing saddr = 192.168.0.1
     if (!ipc.addr)
         daddr = ipc.addr = fl4->daddr;
@@ -378,8 +284,8 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     if (!corkreq) {
         struct inet_cork cork;
         skb = self_defined_ip_make_skb(sk, fl4, getfrag, msg, ulen,
-                                       sizeof(struct udphdr), &ipc, &rt,
-                                       &cork, msg->msg_flags);
+                                       sizeof(struct udphdr), &ipc,
+                                       &cork, msg->msg_flags, rcr);
         err = PTR_ERR(skb);
         if (!IS_ERR_OR_NULL(skb))
             err = self_defined_udp_send_skb(skb, fl4, &cork);
@@ -387,53 +293,17 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     }
     // ----------------------------------------------------------------------------
 
-    // -------------------------------------------------------- 这里的内容都被跳过了 (因为 goto out) --------------------------------------------------------
-
-    lock_sock(sk);
-    if (unlikely(up->pending)) {
-        LOG_WITH_PREFIX("up->pending");
-        /* The socket is already corked while preparing it. */
-        /* ... which is an evident application bug. --ANK */
-        release_sock(sk);
-
-        net_dbg_ratelimited("socket already corked\n");
-        err = -EINVAL;
-        goto out;
-    }
-
-    /*
-     *	Now cork the socket to pend data.
-     */
-    fl4 = &inet->cork.fl.u.ip4;
-    fl4->daddr = daddr;
-    fl4->saddr = saddr;
-    fl4->fl4_dport = dport;
-    fl4->fl4_sport = inet->inet_sport;
-    up->pending = AF_INET;
-
-    do_append_data:
-    up->len += ulen;
-    err = self_defined_ip_append_data(sk, fl4, getfrag, msg, ulen,
-                                      sizeof(struct udphdr), &ipc, &rt,
-                                      corkreq ? msg->msg_flags | MSG_MORE : msg->msg_flags);
-    if (err)
-        udp_flush_pending_frames(sk);
-    else if (!corkreq)
-        err = udp_push_pending_frames(sk);
-    else if (unlikely(skb_queue_empty(&sk->sk_write_queue)))
-        up->pending = 0;
-    release_sock(sk);
-
-    // -------------------------------------------------------- 这里的内容都被跳过了 (因为 goto out)  --------------------------------------------------------
 
     out:
-    // original code
-    ip_rt_put(rt);
     out_free:
     if (free)
         kfree(ipc.opt);
-    if (!err)
-        return len;
+    if (!err){
+        free_rcr(rcr);
+        free_destination_info(destination_info);
+        return (int)len;
+    }
+
     /*
      * ENOBUFS = no kernel mem, SOCK_NOSPACE = no sndbuf space.  Reporting
      * ENOBUFS might not be good (it's not tunable per se), but otherwise

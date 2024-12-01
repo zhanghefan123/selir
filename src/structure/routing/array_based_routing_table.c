@@ -73,10 +73,11 @@ void add_entry_to_abrt(struct ArrayBasedRoutingTable* abrt, struct RoutingTableE
  * @return
  */
 struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct ArrayBasedRoutingTable *abrt,
+                                                               int source,
                                                                struct DestinationInfo *destination_info,
-                                                               int bf_effective_bytes) {
+                                                               struct PathValidationStructure* pvs) {
     // 创建 rcr
-    struct RoutingCalcRes *rcr = init_rcr(bf_effective_bytes);
+    struct RoutingCalcRes *rcr = init_rcr(source, destination_info, pvs);
 
     // 只允许单个目的节点
     struct RoutingTableEntry* sre = find_sre_in_abrt(abrt, destination_info->destinations[0]);
@@ -85,7 +86,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct ArrayBased
     rcr->output_interface = sre->output_interface->interface;
 
     // 进行按位或运算
-    memory_or(rcr->bitset, sre->bitset, bf_effective_bytes);
+    memory_or(rcr->bitset, sre->bitset, pvs->bloom_filter->effective_bytes);
 
     return rcr;
 }

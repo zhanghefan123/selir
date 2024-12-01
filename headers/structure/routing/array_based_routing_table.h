@@ -28,7 +28,8 @@ struct RoutingTableEntry *find_sre_in_abrt(struct ArrayBasedRoutingTable *abrt, 
 void add_entry_to_abrt(struct ArrayBasedRoutingTable* abrt, struct RoutingTableEntry* rte);
 
 struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct ArrayBasedRoutingTable *abrt,
+                                                               int source,
                                                                struct DestinationInfo *destination_info,
-                                                               int bf_effective_bytes);
+                                                               struct PathValidationStructure* pvs);
 
 #endif //LOADABLE_KERNEL_MODULE_ARRAY_BASED_ROUTING_TABLE_H
