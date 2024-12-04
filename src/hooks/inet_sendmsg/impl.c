@@ -36,7 +36,7 @@ int self_defined_inet_sendmsg(struct socket *sock, struct msghdr *msg, size_t si
         int network_type = resolve_network_type_from_sk(sk);
         if (IP_NETWORK_TYPE == network_type) {
             return orig_udp_sendmsg(sk, msg, size);
-        } else if (LIR_NETWORK_TYPE == network_type){
+        } else if (PV_NETWORK_TYPE == network_type){
             return self_defined_udp_sendmsg(sk, msg,size);;
         } else {
             return -EINVAL;

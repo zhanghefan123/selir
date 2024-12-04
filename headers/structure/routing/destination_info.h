@@ -7,7 +7,7 @@
 #include <net/ip.h>
 struct DestinationInfo {
     int number_of_destinations;
-    int* destinations;
+    unsigned char* destinations;
 };
 struct DestinationInfo* initialize_destination_info(int number_of_destinations);
 void free_destination_info(struct DestinationInfo* destination_info);

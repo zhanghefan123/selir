@@ -141,11 +141,11 @@ void test_crypto_apis(void){
     // 测试哈希函数
     struct shash_desc* hash_api = generate_hash_api();
     calculate_hash(hash_api, "123");
-    print_hash_or_hmac_result(hash_output, 20);
+    print_memory_in_hex(hash_output, 20);
     // 测试MAC函数
     struct shash_desc* hmac_api = generate_hmac_api();
     calculate_hmac(hmac_api, "123", "123");
-    print_hash_or_hmac_result(hmac_output, 4);
+    print_memory_in_hex(hmac_output, 4);
     // 进行内存的释放
     release_hash_and_hmac_output();
     // 进行api的释放

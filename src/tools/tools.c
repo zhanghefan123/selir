@@ -123,7 +123,7 @@ void printk_binary_u8(u8 n){
  * @param output 输出的内容
  * @param length 输出的长度
  */
-void print_hash_or_hmac_result(unsigned char* output, int length){
+void print_memory_in_hex(unsigned char* output, int length){
     int i;
     printk(KERN_CONT "RESULT ");
     for (i = 0; i < length; i++)

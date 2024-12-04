@@ -37,4 +37,6 @@ static inline struct PathValidationHeader *pvh_hdr(const struct sk_buff *skb) {
     return (struct PathValidationHeader *) skb_network_header(skb);
 }
 
+void PRINT_PVH(struct PathValidationHeader* pvh);
+
 #endif //LOADABLE_KERNEL_MODULE_PATH_VALIDATION_HEADER_H

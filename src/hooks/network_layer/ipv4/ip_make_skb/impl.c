@@ -168,7 +168,7 @@ struct sk_buff *self_defined__ip_make_skb(struct sock *sk,
     // copy destinations
     // ---------------------------------------------------------------------------------------
     dest_pointer_start = (unsigned char*)pvh + sizeof(struct PathValidationHeader);
-    int memory_of_destinations = sizeof(int) * rcr->destination_info->number_of_destinations;
+    int memory_of_destinations = rcr->destination_info->number_of_destinations;
     memcpy(dest_pointer_start, rcr->destination_info->destinations, memory_of_destinations);
     // ---------------------------------------------------------------------------------------
 
@@ -176,6 +176,7 @@ struct sk_buff *self_defined__ip_make_skb(struct sock *sk,
     // ---------------------------------------------------------------------------------------
     bloom_pointer_start = (unsigned char*)pvh + sizeof(struct PathValidationHeader) + memory_of_destinations;
     memcpy(bloom_pointer_start, rcr->bitset, pvs->bloom_filter->effective_bytes);
+    print_memory_in_hex(bloom_pointer_start, pvs->bloom_filter->effective_bytes);
     // ---------------------------------------------------------------------------------------
 
     skb->priority = (cork->tos != -1) ? cork->priority : sk->sk_priority;

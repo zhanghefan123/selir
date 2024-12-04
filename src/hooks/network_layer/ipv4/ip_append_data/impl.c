@@ -95,9 +95,7 @@ int self_defined__ip_append_data(struct sock *sk,
 
     // zhf add code 进行路径长度的获取
     // -----------------------------------------------------------
-    int length_of_header = sizeof(struct PathValidationHeader) +
-            sizeof(int)*rcr->destination_info->number_of_destinations +
-            pvs->bloom_filter->effective_bytes;
+    int length_of_header = sizeof(struct PathValidationHeader) + rcr->destination_info->number_of_destinations + pvs->bloom_filter->effective_bytes;
     // -----------------------------------------------------------
 
     fragheaderlen = length_of_header;

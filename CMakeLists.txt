@@ -34,6 +34,7 @@ add_executable(lkm
         src/structure/routing/hash_based_routing_table.c
         src/structure/routing/routing_calc_res.c
         src/structure/routing/routing_table_entry.c
+        src/structure/path_validation_header.c
 
         src/hooks/inet_sendmsg/impl.c
         src/hooks/inet_sendmsg/hook.c

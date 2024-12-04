@@ -18,7 +18,7 @@ void test_apis(void){
  */
 int resolve_network_type_from_sk(struct sock* sk){
     if (sock_flag(sk, SOCK_DBG)){
-        return LIR_NETWORK_TYPE;
+        return PV_NETWORK_TYPE;
     } else {
         return IP_NETWORK_TYPE;
     }
@@ -31,8 +31,8 @@ int resolve_network_type_from_sk(struct sock* sk){
  */
 int resolve_network_type_from_skb(struct sk_buff* skb){
     struct PathValidationHeader* pvh = pvh_hdr(skb);
-    if(LIR_VERSION_NUMBER == pvh->version){
-        return LIR_NETWORK_TYPE;
+    if(PV_VERSION_NUMBER == pvh->version){
+        return PV_NETWORK_TYPE;
     } else {
         return IP_NETWORK_TYPE;
     }

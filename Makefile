@@ -18,12 +18,13 @@ selir-objs := \
 	src/api/netlink_router.o \
 	src/api/netlink_handler.o \
 	src/api/option_resolver.o \
+	src/structure/path_validation_structure.o \
+	src/structure/path_validation_header.o \
 	src/structure/namespace/namespace.o \
 	src/structure/crypto/crypto_structure.o \
 	src/structure/crypto/bloom_filter.o \
-	src/structure/routing/destination_info.o \
-	src/structure/path_validation_structure.o \
 	src/structure/interface/interface_table.o \
+	src/structure/routing/destination_info.o \
 	src/structure/routing/array_based_routing_table.o \
 	src/structure/routing/hash_based_routing_table.o \
 	src/structure/routing/routing_calc_res.o \

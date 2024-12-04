@@ -1,7 +1,6 @@
 #include "api/test.h"
 #include "hooks/network_layer/ipv4/ip_rcv/ip_rcv.h"
 #include "structure/path_validation_header.h"
-#include "tools/tools.h"
 #include <net/inet_ecn.h>
 
 int self_defined_ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev){
@@ -12,9 +11,11 @@ int self_defined_ip_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 int path_validation_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev){
     // 1. 提取网络命名空间
     struct net* net = dev_net(dev);
-    // 2. 进行消息的打印
-    LOG_WITH_PREFIX("received packet");
-    // 2. 进行初始的校验
+    // 2. 拿到首部
+    struct PathValidationHeader* pvh = pvh_hdr(skb);
+    // 3. 进行消息的打印
+    PRINT_PVH(pvh);
+    // 4. 进行数据包的释放
     kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
     return 0;
 }
