@@ -1,9 +1,8 @@
-#include <net/ip.h>
-#include <net/inet_common.h>
+//#include <net/inet_common.h>
 #include "tools/tools.h"
 #include "hooks/inet_sendmsg/inet_sendmsg.h"
 #include "api/test.h"
-#include "hooks/udp_sendmsg/udp_sendmsg.h"
+#include "hooks/transport_layer/udp/udp_sendmsg/udp_sendmsg.h"
 
 char* tcp_sendmsg_str = "tcp_sendmsg";
 extern asmlinkage int (*orig_udp_sendmsg)(struct sock *sk, struct msghdr *msg, size_t len);
@@ -30,11 +29,11 @@ bool resolve_inet_sendmsg_inner_functions_address(void) {
 int self_defined_inet_sendmsg(struct socket *sock, struct msghdr *msg, size_t size){
     struct sock *sk = sock->sk;
 
-    if (unlikely(inet_send_prepare(sk)))
-        return -EAGAIN;
+//    if (unlikely(inet_send_prepare(sk)))
+//        return -EAGAIN;
 
     if (sk->sk_prot->sendmsg == orig_udp_sendmsg){
-        int network_type = resolve_network_type(sk);
+        int network_type = resolve_network_type_from_sk(sk);
         if (IP_NETWORK_TYPE == network_type) {
             return orig_udp_sendmsg(sk, msg, size);
         } else if (LIR_NETWORK_TYPE == network_type){

@@ -3,14 +3,13 @@
 //
 #include "tools/tools.h"
 #include "prepare/resolve_function_address.h"
-#include "hooks/ipv6_rcv/ipv6_rcv.h"
-#include "hooks/ip6_rcv_finish_core/ip6_rcv_finish_core.h"
-#include "hooks/tcp_v4_rcv/tcp_v4_rcv.h"
-#include "hooks/tcp_v4_do_rcv/tcp_v4_do_rcv.h"
-#include "hooks/tcp_rcv_established/tcp_rcv_established.h"
-#include "hooks/ip_make_skb/ip_make_skb.h"
-#include "hooks/udp_sendmsg/udp_sendmsg.h"
-#include "hooks/ip_append_data/ip_append_data.h"
+#include "hooks/network_layer/ipv6/ipv6_rcv/ipv6_rcv.h"
+#include "hooks/network_layer/ipv6/ip6_rcv_finish_core/ip6_rcv_finish_core.h"
+#include "hooks/transport_layer/tcp/tcp_v4_rcv/tcp_v4_rcv.h"
+#include "hooks/transport_layer/tcp/tcp_v4_do_rcv/tcp_v4_do_rcv.h"
+#include "hooks/transport_layer/tcp/tcp_rcv_established/tcp_rcv_established.h"
+#include "hooks/transport_layer/udp/udp_sendmsg/udp_sendmsg.h"
+#include "hooks/network_layer/ipv4/ip_append_data/ip_append_data.h"
 #include "hooks/inet_sendmsg/inet_sendmsg.h"
 
 /*
@@ -41,11 +40,6 @@ bool resolve_function_address(void){
     result = resolve_tcp_rcv_established_inner_functions_address();
     if(!result){
         LOG_WITH_PREFIX("resolve tcp_rcv_established failed");
-        return result;
-    }
-    result = resolve_ip_make_skb_inner_functions_address();
-    if(!result){
-        LOG_WITH_PREFIX("resolve path_validation_make_skb failed");
         return result;
     }
     result = resolve_udp_sendmsg_inner_functions();

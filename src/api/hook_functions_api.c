@@ -6,10 +6,12 @@
 #include "api/hook_functions_api.h"
 #include "api/ftrace_hook_api.h"
 #include "prepare/resolve_function_address.h"
-#include "hooks/ipv6_rcv/ipv6_rcv.h"
-#include "hooks/tcp_v4_rcv/tcp_v4_rcv.h"
-#include "hooks/udp_sendmsg/udp_sendmsg.h"
+#include "hooks/network_layer/ipv6/ipv6_rcv/ipv6_rcv.h"
+#include "hooks/transport_layer/tcp/tcp_v4_rcv/tcp_v4_rcv.h"
+#include "hooks/transport_layer/udp/udp_sendmsg/udp_sendmsg.h"
 #include "hooks/inet_sendmsg/inet_sendmsg.h"
+#include "hooks/network_layer/ipv4/ip_rcv/ip_rcv.h"
+
 
 // 我们添加的 hook 列表, 假设最多10个
 struct ftrace_hook hooks[MAXIMUM_SUPPORTED_HOOK_FUNCTIONS];
@@ -22,6 +24,7 @@ int install_hook_functions(void){
     add_ipv6_rcv_to_hook(); // 进行 ipv6_rcv hook 的安装
     add_tcp_v4_rcv_to_hook(); // 进行 tcp_v4_rcv hook 的安装
     add_inet_sendmsg_to_hook(); // 进行 inet_sendmsg hook 的安装
+    add_ip_rcv_to_hook(); // 进行 ip_rcv hook 的安装
     fh_install_hooks(hooks, number_of_hook);
     LOG_WITH_PREFIX("already install hooks");
     tidy();

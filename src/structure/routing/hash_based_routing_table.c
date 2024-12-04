@@ -124,8 +124,10 @@ int free_hbrt(struct HashBasedRoutingTable *hbrt) {
             }
         }
         // 清空 head_pointer_list 引入的 memory 开销
-        kfree(hbrt->bucket_array);
-        hbrt->bucket_array = NULL;
+        if (NULL != hbrt->bucket_array){
+            kfree(hbrt->bucket_array);
+            hbrt->bucket_array = NULL;
+        }
         // 释放 hbrt
         kfree(hbrt);
         hbrt = NULL;

@@ -24,12 +24,16 @@ void free_routing_table_entry(struct RoutingTableEntry *routing_table_entry) {
     if (NULL != routing_table_entry) {
         if (NULL != routing_table_entry->node_ids) {
             kfree(routing_table_entry->node_ids);
+            routing_table_entry->node_ids = NULL;
         }
         if (NULL != routing_table_entry->bitset) {
             kfree(routing_table_entry->bitset);
+            routing_table_entry->bitset = NULL;
         }
         if (NULL != routing_table_entry->link_identifiers) {
             kfree(routing_table_entry->link_identifiers);
+            routing_table_entry->link_identifiers = NULL;
         }
+        routing_table_entry = NULL;
     }
 }

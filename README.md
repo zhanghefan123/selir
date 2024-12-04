@@ -26,3 +26,32 @@
     4. tools/ 一些工具, 比如进行带前缀的日志的输出
 2. headers/ 存储的头文件
 
+# version
+
+1. version v1.0 github 上的第一个版本, 将 udp_sendmsg 内部函数全换成了代码, 
+但是没有进行函数的内部的逻辑的修改。
+
+# functions illustration
+
+## app layer
+- inet_sendmsg 是 tcp 和 udp 的上层函数
+
+## transport layer
+- udp_sendmsg 是 udp_sendmsg 的 implementation 和 hook
+- udp_send_skb
+- tcp_rcv_established
+- tcp_v4_do_rcv
+- tcp_v4_rcv
+
+## network layer
+- ip6_rc_finish_core 
+- ip_append_data
+- ip_make_skb
+- ip_select_ident
+- ip_send_skb
+- ip_setup_cork
+- ipv6_rcv
+- ipv6_rcv_finish
+
+## mac layer
+- netif_rcv_skb 接口收包函数

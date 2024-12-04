@@ -12,22 +12,25 @@
 
 struct PathValidationHeader {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-    __u8 useless: 4,
-            version: 4;
+    __u8 useless: 4,version: 4; // 字段1
 #elif defined (__BIG_ENDIAN_BITFIELD)
     __u8	version:4,
               ihl:4;
 #else
 #error	"Please fix <asm/byteorder.h>"
 #endif
-    __u8 ttl;            // ttl
-    __u8 protocol;          // 上层协议
-    __u16 id;               // 分片相关
-    __be16 frag_off;       // 分片相关
-    __sum16 check;          // 校验和
-    __u16 source;           // 源节点编号
-    int bf_len;             //  布隆过滤器长度
-    unsigned char data[0];   // 额外的部分
+    __u8	tos;            // tos 字段2
+    __u8 ttl;               // ttl 字段3
+    __u8 protocol;          // 上层协议 字段4
+    __be16 frag_off;        // 分片相关 字段5
+    __u16 id;               // 分片相关 字段6
+    __sum16 check;          // 校验和 字段7
+    __u16 source;           // 源节点编号 字段8
+    int hdr_len;            // 头部总长度 字段9
+    int tot_len;            // 总的长度 字段10
+    int bf_len;             // 布隆过滤器长度 字段11
+    int dest_len;           // 目的节点个数 字段12
+    unsigned char data[0];  // 额外的部分 (这里是指的 bf 的 bitarray)
 };
 
 static inline struct PathValidationHeader *pvh_hdr(const struct sk_buff *skb) {

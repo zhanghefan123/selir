@@ -15,6 +15,7 @@ struct RoutingCalcRes *init_rcr(int source, struct DestinationInfo* destination_
     route_calculation_result->output_interface = NULL;
     route_calculation_result->source = source;
     route_calculation_result->destination_info = destination_info;
+    route_calculation_result->pvs = pvs;
     return route_calculation_result;
 }
 

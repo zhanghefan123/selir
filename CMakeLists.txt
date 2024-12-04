@@ -34,26 +34,38 @@ add_executable(lkm
         src/structure/routing/hash_based_routing_table.c
         src/structure/routing/routing_calc_res.c
         src/structure/routing/routing_table_entry.c
+
         src/hooks/inet_sendmsg/impl.c
         src/hooks/inet_sendmsg/hook.c
-        src/hooks/ipv6_rcv/hook.c
-        src/hooks/ipv6_rcv/impl.c
-        src/hooks/ipv6_rcv_finish/impl.c
-        src/hooks/ip6_rcv_finish_core/impl.c
-        src/hooks/ip_append_data/impl.c
-        src/hooks/ip_make_skb/impl.c
-        src/hooks/ip_send_skb/impl.c
-        src/hooks/ip_setup_cork/impl.c
-        src/hooks/tcp_v4_rcv/hook.c
-        src/hooks/tcp_v4_rcv/impl.c
-        src/hooks/tcp_v4_do_rcv/impl.c
-        src/hooks/tcp_rcv_established/impl.c
-        src/hooks/udp_send_skb/impl.c
-        src/hooks/udp_sendmsg/hook.c
-        src/hooks/udp_sendmsg/impl.c
+
+        src/hooks/transport_layer/tcp/tcp_v4_rcv/hook.c
+        src/hooks/transport_layer/tcp/tcp_v4_rcv/impl.c
+        src/hooks/transport_layer/tcp/tcp_v4_do_rcv/impl.c
+        src/hooks/transport_layer/tcp/tcp_rcv_established/impl.c
+
+        src/hooks/transport_layer/udp/udp_send_skb/impl.c
+        src/hooks/transport_layer/udp/udp_sendmsg/impl.c
+        src/hooks/transport_layer/udp/udp_sendmsg/hook.c
+
+        src/hooks/network_layer/ipv4/ip_local_out/impl.c
+        src/hooks/network_layer/ipv4/ip_send_check/impl.c
+        src/hooks/network_layer/ipv4/ip_output/impl.c
+        src/hooks/network_layer/ipv4/ip_rcv/impl.c
+        src/hooks/network_layer/ipv4/ip_rcv/hook.c
+        src/hooks/network_layer/ipv4/ip_append_data/impl.c
+        src/hooks/network_layer/ipv4/ip_make_skb/impl.c
+        src/hooks/network_layer/ipv4/ip_send_skb/impl.c
+        src/hooks/network_layer/ipv4/ip_setup_cork/impl.c
+
+        src/hooks/network_layer/ipv6/ipv6_rcv/hook.c
+        src/hooks/network_layer/ipv6/ipv6_rcv/impl.c
+        src/hooks/network_layer/ipv6/ipv6_rcv_finish/impl.c
+        src/hooks/network_layer/ipv6/ip6_rcv_finish_core/impl.c
+
         src/prepare/resolve_function_address.c
         src/tools/tools.c
         src/module_starter.c
+
 )
 
 set(HEADERS_DIR
