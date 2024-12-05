@@ -12,6 +12,7 @@ struct InterfaceTableEntry {
     int link_identifier; // 链路标识
     struct net_device *interface; // 对应的接口
     int index; // 在接口表之中的索引
+    unsigned char* bitset; // 将这个标识插入之后的布隆过滤器
 };
 // ----------------------------------------------------------------------------------------------
 

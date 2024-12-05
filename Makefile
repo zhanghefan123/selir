@@ -44,6 +44,7 @@ selir-objs := \
 	src/hooks/network_layer/ipv4/ip_send_check/impl.o \
 	src/hooks/network_layer/ipv4/ip_send_skb/impl.o \
 	src/hooks/network_layer/ipv4/ip_setup_cork/impl.o \
+	src/hooks/network_layer/ipv4/ip_packet_forward/impl.o \
 	src/hooks/transport_layer/tcp/tcp_v4_rcv/impl.o \
 	src/hooks/transport_layer/tcp/tcp_v4_rcv/hook.o \
 	src/hooks/transport_layer/tcp/tcp_rcv_established/impl.o \

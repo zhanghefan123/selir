@@ -57,6 +57,7 @@ add_executable(lkm
         src/hooks/network_layer/ipv4/ip_make_skb/impl.c
         src/hooks/network_layer/ipv4/ip_send_skb/impl.c
         src/hooks/network_layer/ipv4/ip_setup_cork/impl.c
+        src/hooks/network_layer/ipv4/ip_packet_forward/impl.c
 
         src/hooks/network_layer/ipv6/ipv6_rcv/hook.c
         src/hooks/network_layer/ipv6/ipv6_rcv/impl.c
