@@ -43,11 +43,12 @@ add_executable(lkm
         src/hooks/transport_layer/tcp/tcp_v4_rcv/impl.c
         src/hooks/transport_layer/tcp/tcp_v4_do_rcv/impl.c
         src/hooks/transport_layer/tcp/tcp_rcv_established/impl.c
-
+        src/hooks/transport_layer/udp/udp_rcv/impl.c
         src/hooks/transport_layer/udp/udp_send_skb/impl.c
         src/hooks/transport_layer/udp/udp_sendmsg/impl.c
         src/hooks/transport_layer/udp/udp_sendmsg/hook.c
 
+        src/hooks/network_layer/ipv4/ip_local_deliver/impl.c
         src/hooks/network_layer/ipv4/ip_local_out/impl.c
         src/hooks/network_layer/ipv4/ip_send_check/impl.c
         src/hooks/network_layer/ipv4/ip_output/impl.c

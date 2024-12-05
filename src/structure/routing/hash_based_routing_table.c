@@ -190,6 +190,8 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct HashBasedR
                                                                    source_node_id,
                                                                    primaryNodeId);
 
+    print_memory_in_hex(source_to_primary->bitset, pvs->bloom_filter->effective_bytes);
+
     // 2. 更新出接口和 bitset
     rcr->output_interface = source_to_primary->output_interface->interface;
     memory_or(rcr->bitset, source_to_primary->bitset, pvs->bloom_filter->effective_bytes);
@@ -202,6 +204,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct HashBasedR
                                                                       otherNodeId);
         // 进行 bitset 的更新
         memory_or(rcr->bitset, primary_to_other->bitset, pvs->bloom_filter->effective_bytes);
+        LOG_WITH_PREFIX("hello");
     }
 
     // 4. 进行结果的返回

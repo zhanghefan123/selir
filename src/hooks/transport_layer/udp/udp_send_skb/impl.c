@@ -1,4 +1,5 @@
 #include <linux/udp.h>
+#include "structure/path_validation_header.h"
 #include "hooks/transport_layer/udp/udp_send_skb/udp_send_skb.h"
 #include "hooks/network_layer/ipv4/ip_send_skb/ip_send_skb.h"
 
@@ -24,6 +25,8 @@ int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct in
     /*
      * Create a UDP header
      */
+    struct PathValidationHeader* pvh = pvh_hdr(skb);
+
     uh = udp_hdr(skb);
     uh->source = inet->inet_sport;
     uh->dest = fl4->fl4_dport;
@@ -69,7 +72,7 @@ int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct in
     } else if (skb->ip_summed == CHECKSUM_PARTIAL) { /* UDP hardware csum */
         csum_partial:
 
-        udp4_hwcsum(skb, fl4->saddr, fl4->daddr);
+        udp4_hwcsum(skb, pvh->source, pvh->source);
         goto send;
 
     } else
@@ -77,7 +80,7 @@ int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct in
 
     /* add protocol-dependent pseudo-header */
     // 添加上伪首部, 并进行校验和的计算
-    uh->check = csum_tcpudp_magic(fl4->saddr, fl4->daddr, len,sk->sk_protocol, csum);
+    uh->check = csum_tcpudp_magic(pvh->source, pvh->source, len,sk->sk_protocol, csum);
     if (uh->check == 0)
         uh->check = CSUM_MANGLED_0;
 

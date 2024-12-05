@@ -1,3 +1,5 @@
+#include <net/ip.h>
+#include <linux/netdevice.h>
 #include "hooks/network_layer/ipv4/ip_output/ip_output.h"
 #include "hooks/network_layer/ipv4/ip_packet_forward/ip_packet_forward.h"
 
@@ -15,10 +17,13 @@ int pv_packet_forward(struct sk_buff* skb, struct net_device* output_interface, 
     struct sock* sk = NULL;
     // reason 原因
     SKB_DR(reason);
-    // skb_cow
-    skb_cow(skb, LL_RESERVED_SPACE(output_interface->dev));
-    // 设置
+    // 进行 L2 层头部空间的预留
+    skb_cow(skb, LL_RESERVED_SPACE(output_interface));
+    // 如果 ip 层校验和策略，则修改为 None
+    skb_forward_csum(skb);
+    // 将 skb 修改为出口网络设备
     skb->dev = output_interface;
+    // 设置链路层协议
     skb->protocol = htons(ETH_P_IP);
     // 当超过 mtu 限制, 需要进行分片
     return pv_finish_output2(current_ns, sk, skb, output_interface);

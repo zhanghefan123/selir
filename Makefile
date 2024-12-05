@@ -35,6 +35,7 @@ selir-objs := \
 	src/hooks/network_layer/ipv6/ipv6_rcv/impl.o \
 	src/hooks/network_layer/ipv6/ipv6_rcv_finish/impl.o \
 	src/hooks/network_layer/ipv6/ip6_rcv_finish_core/impl.o \
+	src/hooks/network_layer/ipv4/ip_local_deliver/impl.o \
 	src/hooks/network_layer/ipv4/ip_append_data/impl.o \
 	src/hooks/network_layer/ipv4/ip_local_out/impl.o \
 	src/hooks/network_layer/ipv4/ip_make_skb/impl.o \
@@ -49,6 +50,7 @@ selir-objs := \
 	src/hooks/transport_layer/tcp/tcp_v4_rcv/hook.o \
 	src/hooks/transport_layer/tcp/tcp_rcv_established/impl.o \
 	src/hooks/transport_layer/tcp/tcp_v4_do_rcv/impl.o \
+	 src/hooks/transport_layer/udp/udp_rcv/impl.o \
 	src/hooks/transport_layer/udp/udp_send_skb/impl.o \
 	src/hooks/transport_layer/udp/udp_sendmsg/impl.o \
 	src/hooks/transport_layer/udp/udp_sendmsg/hook.o \
@@ -61,8 +63,8 @@ selir-objs := \
 OUTPUT_DIR = "./build"
 
 # 这个必须要是 headers 的绝对路径才能行
-#ccflags-y += -I/home/zhf/Projects/srv6/linux/selir/headers
-ccflags-y += -I/home/zhf/Projects/linux/selir/headers
+ccflags-y += -I/home/zhf/Projects/srv6/linux/selir/headers
+#ccflags-y += -I/home/zhf/Projects/linux/selir/headers
 
 
 all: compile

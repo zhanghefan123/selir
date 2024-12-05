@@ -9,6 +9,7 @@
 #include "hooks/transport_layer/tcp/tcp_v4_do_rcv/tcp_v4_do_rcv.h"
 #include "hooks/transport_layer/tcp/tcp_rcv_established/tcp_rcv_established.h"
 #include "hooks/transport_layer/udp/udp_sendmsg/udp_sendmsg.h"
+#include "hooks/transport_layer/udp/udp_rcv/udp_rcv.h"
 #include "hooks/network_layer/ipv4/ip_append_data/ip_append_data.h"
 #include "hooks/inet_sendmsg/inet_sendmsg.h"
 
@@ -61,6 +62,10 @@ bool resolve_function_address(void){
     if(!result){
         LOG_WITH_PREFIX("resolve udp_sendmsg failed");
         return result;
+    }
+    result = resolve_udp_rcv_inner_functions_address();
+    if(!result){
+        LOG_WITH_PREFIX("resolve udp_rcv failed");
     }
     return result;
 }

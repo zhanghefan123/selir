@@ -30,7 +30,7 @@ void free_pvs(struct PathValidationStructure *pvs) {
     // 进行基于哈希的路由表的释放
     free_hbrt(pvs->hbrt);
     // 进行基于数组的接口表的释放
-    free_array_based_interface_table(pvs->abit);
+    free_abit(pvs->abit);
     // 进行布隆过滤器的释放
     delete_bloom_filter(pvs->bloom_filter);
 }
@@ -52,5 +52,5 @@ void initialize_routing_and_forwarding_table(struct PathValidationStructure *pvs
         pvs->hbrt = initialize_hbrt(number_of_routes_or_buckets);
         pvs->routing_table_type = HASH_BASED_ROUTING_TABLE_TYPE;
     }
-    pvs->abit = initialize_array_based_interface_table(number_of_interfaces);
+    pvs->abit = init_abit(number_of_interfaces);
 }

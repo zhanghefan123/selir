@@ -23,7 +23,7 @@ struct ArrayBasedRoutingTable *init_abrt(int number_of_routes);
 
 void free_abrt(struct ArrayBasedRoutingTable *abrt);
 
-struct RoutingTableEntry *find_sre_in_abrt(struct ArrayBasedRoutingTable *abrt, int destination);
+struct RoutingTableEntry *find_rte_in_abrt(struct ArrayBasedRoutingTable *abrt, int destination);
 
 void add_entry_to_abrt(struct ArrayBasedRoutingTable* abrt, struct RoutingTableEntry* rte);
 

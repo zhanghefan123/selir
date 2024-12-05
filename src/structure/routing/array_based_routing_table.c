@@ -50,7 +50,7 @@ void free_abrt(struct ArrayBasedRoutingTable *abrt) {
  * @param destination 目的节点
  * @return
  */
-struct RoutingTableEntry *find_sre_in_abrt(struct ArrayBasedRoutingTable *abrt, int destination) {
+struct RoutingTableEntry *find_rte_in_abrt(struct ArrayBasedRoutingTable *abrt, int destination) {
     return abrt->routes[destination];
 }
 
@@ -80,7 +80,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct ArrayBased
     struct RoutingCalcRes *rcr = init_rcr(source, destination_info, pvs);
 
     // 只允许单个目的节点
-    struct RoutingTableEntry* sre = find_sre_in_abrt(abrt, destination_info->destinations[0]);
+    struct RoutingTableEntry* sre = find_rte_in_abrt(abrt, destination_info->destinations[0]);
 
     // 设置出接口
     rcr->output_interface = sre->output_interface->interface;

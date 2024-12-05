@@ -1,72 +1,40 @@
 #include "api/test.h"
 #include "hooks/network_layer/ipv4/ip_rcv/ip_rcv.h"
 #include "hooks/network_layer/ipv4/ip_packet_forward/ip_packet_forward.h"
+#include "hooks/network_layer/ipv4/ip_local_deliver/ip_local_deliver.h"
 #include "structure/path_validation_header.h"
 #include "structure/namespace/namespace.h"
 #include "structure/crypto/bloom_filter.h"
 #include <net/inet_ecn.h>
+#include <linux/inetdevice.h>
 
 int self_defined_ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev){
     return 0;
 }
 
-int pv_rcv_finish_core(struct net *net, struct sock *sk,
-                       struct sk_buff *skb, struct net_device *dev,
-                       const struct sk_buff *hint){
-    // 1. path validation header 路径验证头部
-    const struct PathValidationHeader *pvh = pvh_hdr(skb);
-    // 2. 错误, 丢弃原因
-    int err, drop_reason;
-    drop_reason = SKB_DROP_REASON_NOT_SPECIFIED;
-    // 3. 路径验证数据结构
-    struct PathValidationStructure* pvs = get_pvs_from_ns(net);
-    // 4. 拿到接口表
-    struct ArrayBasedInterfaceTable* abit = pvs->abit;
-    int number_of_interfaces = abit->number_of_interfaces;
-    int index;
-    for(index = 0; index < number_of_interfaces; index++){
-        if(dev->ifindex == abit->interfaces[index].index) {
-            continue;
-        } else {
-
-        }
-    }
-    return NET_RX_SUCCESS;
-}
-
-
-int pv_rcv_finish(struct net*net, struct sock* sk, struct sk_buff* skb){
-    struct net_device *dev = skb->dev;
-    int ret;
-
-    /* if ingress device is enslaved to an L3 master device pass the
-     * skb to its handler for processing
-     */
-    //    skb = l3mdev_ip_rcv(skb);
-    //    if (!skb)
-    //        return NET_RX_SUCCESS;
-
-    ret = pv_rcv_finish_core(net, sk, skb, dev, NULL);
-    if (ret != NET_RX_DROP)
-        ret = dst_input(skb);
-    return ret;
-}
-
 int path_validation_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev){
-    // 1. 提取网络命名空间
+    // 1. 初始化变量
     struct net* net = dev_net(dev);
-    // 2. 拿到首部
     struct PathValidationHeader* pvh = pvh_hdr(skb);
     struct PathValidationStructure* pvs = get_pvs_from_ns(net);
+    int process_result;
+    // 2. 进行消息的打印
+    PRINT_PVH(pvh);
     // 3. 进行初级的校验
     skb = path_validation_rcv_validate(skb, net);
     // 4. 进行实际的转发
-    path_validation_forward_packets(skb, pvs, net);
-    // 5. 进行消息的打印
-    PRINT_PVH(pvh);
-    // 6. 进行数据包的释放
-    kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
-    return 0;
+    process_result = path_validation_forward_packets(skb, pvs, net, orig_dev);
+    // 5. 判断是否需要向上层提交或者释放
+    if(NET_RX_SUCCESS == process_result) {
+        LOG_WITH_PREFIX("local deliver");
+        __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
+        pv_local_deliver(skb, receive_interface_address);
+        return 0;
+    } else {
+        // 5.2 进行数据包的释放
+        kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
+        return 0;
+    }
 }
 
 /**
@@ -74,19 +42,47 @@ int path_validation_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
  * @param skb
  * @param pvh
  */
-void path_validation_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns){
-    struct ArrayBasedInterfaceTable* abit = pvs->abit;
+int path_validation_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
+    // 1. 初始化变量
     int index;
-    // 遍历所有的接口进行转发
-    for(index = 0; index < abit->number_of_interfaces; index++){
-        // 判断接口是否在
+    int result = NET_RX_DROP; // 默认的情况是进行数据包的丢弃s
+    struct ArrayBasedInterfaceTable* abit = pvs->abit;
+    struct PathValidationHeader* pvh = pvh_hdr(skb);
+    unsigned char* previous_bf_bitset = pvs->bloom_filter->bitset;
+    unsigned char* dest_pointer_start =  (unsigned char*)(pvh) + sizeof(struct PathValidationHeader);
+    unsigned char* bloom_pointer_start = (unsigned char*)(pvh) + sizeof(struct PathValidationHeader) + pvh->dest_len;
+    pvs->bloom_filter->bitset = bloom_pointer_start;
 
-
-
-
-        pv_packet_forward(skb, abit->interfaces[index].interface, current_ns);
+    // 2. 检查是否需要向上层进行提交
+    for(index = 0; index < pvh->dest_len; index++){
+        if(pvs->node_id == dest_pointer_start[index]){
+            result = NET_RX_SUCCESS; // 应该向上层进行提交
+            break;
+        }
     }
+
+    // 3. 遍历所有的接口进行转发
+    for(index = 0; index < abit->number_of_interfaces; index++) {
+        // 拿到链路标识
+        int link_identifier = abit->interfaces[index]->link_identifier;
+        // 检查是否在布隆过滤器之中
+        if (0 == check_element_in_bloom_filter(pvs->bloom_filter, &(link_identifier), sizeof(link_identifier))) {
+            // 如果入接口索引等于要转发的方向那么就不进行转发
+            if(in_dev->ifindex != abit->interfaces[index]->interface->ifindex){
+                struct sk_buff* copied_skb = skb_copy(skb, GFP_KERNEL);
+                pv_packet_forward(copied_skb, abit->interfaces[index]->interface, current_ns);
+            } else {
+                LOG_WITH_PREFIX("not forward to incomming interface");
+            }
+        }
+    }
+
+    // 进行还原
+    pvs->bloom_filter->bitset = previous_bf_bitset;
+    return result;
 }
+
+
 
 struct sk_buff* path_validation_rcv_validate(struct sk_buff* skb, struct net* net){
     // 获取头部
@@ -153,7 +149,11 @@ struct sk_buff* path_validation_rcv_validate(struct sk_buff* skb, struct net* ne
 
     // 如果校验和不正确的话, goto csum_error
     if (unlikely(ip_fast_csum((u8 *)pvh, pvh->hdr_len / 4)))
+    {
+        LOG_WITH_PREFIX("csum error");
         goto csum_error;
+    }
+
 
     // 检查长度是否是合法的
     // --------------------------------------------------------
