@@ -5,7 +5,9 @@
 #ifndef LOADABLE_KERNEL_MODULE_OPTION_RESOLVER_H
 #define LOADABLE_KERNEL_MODULE_OPTION_RESOLVER_H
 #include "structure/routing/destination_info.h"
-#define OPTION_START_INDEX 2
+#define PATH_VALIDATION_PROTOCOL_INDEX 2
+#define NUMBER_OF_DESTINATIONS_INDEX 3
+#define DESTINATIONS_START_INDEX 4
 // 这里的起始 index 为 2 的原因是, 第一个字节是 type, 第二个字节是 length
-struct DestinationInfo* resolve_option_for_destination_info(struct ip_options_rcu* opt);
+struct DestinationAndProtocolInfo* resolve_opt_for_dest_and_proto_info(struct ip_options_rcu* opt);
 #endif //LOADABLE_KERNEL_MODULE_OPTION_RESOLVER_H

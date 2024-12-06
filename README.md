@@ -17,6 +17,11 @@
 2. 设置远程工具链之后, 会有一个默认的目录映射，最好开启一个全新的目录映射，
 这样不会进行相互的影响。
 
+3. path_validation_structure 之中包含了 array_based_routing_table 而 array_based_routing_table 之中又包含 path_validation_structure 
+这是绝对不被允许的。这就是循环引用。就可能出现 Incompatiable Type 的情况。
+
+4. 当 skb_copy 的时候并不会进行 skb->sk 的拷贝, 还有以后不要尝试从通过 udp_sendmsg 向多个地方进行发包了, 试过很多次了
+
 # directory illustration:
 
 1. src/
@@ -30,28 +35,4 @@
 
 1. version v1.0 github 上的第一个版本, 将 udp_sendmsg 内部函数全换成了代码, 
 但是没有进行函数的内部的逻辑的修改。
-
-# functions illustration
-
-## app layer
-- inet_sendmsg 是 tcp 和 udp 的上层函数
-
-## transport layer
-- udp_sendmsg 是 udp_sendmsg 的 implementation 和 hook
-- udp_send_skb
-- tcp_rcv_established
-- tcp_v4_do_rcv
-- tcp_v4_rcv
-
-## network layer
-- ip6_rc_finish_core 
-- ip_append_data
-- ip_make_skb
-- ip_select_ident
-- ip_send_skb
-- ip_setup_cork
-- ipv6_rcv
-- ipv6_rcv_finish
-
-## mac layer
-- netif_rcv_skb 接口收包函数
+2. version v2.0 github 上实现了基本的 lir。

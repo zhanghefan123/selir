@@ -6,7 +6,6 @@
 #define LOADABLE_KERNEL_MODULE_ARRAY_BASED_ROUTING_TABLE_H
 
 #include "structure/routing/routing_table_entry.h"
-#include "structure/routing/routing_calc_res.h"
 #include "structure/routing/destination_info.h"
 #include "structure/crypto/bloom_filter.h"
 #include "tools/tools.h"
@@ -26,10 +25,5 @@ void free_abrt(struct ArrayBasedRoutingTable *abrt);
 struct RoutingTableEntry *find_rte_in_abrt(struct ArrayBasedRoutingTable *abrt, int destination);
 
 void add_entry_to_abrt(struct ArrayBasedRoutingTable* abrt, struct RoutingTableEntry* rte);
-
-struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct ArrayBasedRoutingTable *abrt,
-                                                               int source,
-                                                               struct DestinationInfo *destination_info,
-                                                               struct PathValidationStructure* pvs);
 
 #endif //LOADABLE_KERNEL_MODULE_ARRAY_BASED_ROUTING_TABLE_H

@@ -5,7 +5,7 @@
 #include "hooks/network_layer/ipv4/ip_setup_cork/ip_setup_cork.h"
 #include "hooks/network_layer/ipv4/ip_append_data/ip_append_data.h"
 #include "structure/routing/routing_calc_res.h"
-#include "structure/path_validation_header.h"
+#include "structure/header/lir_header.h"
 #include "structure/namespace/namespace.h"
 
 /**
@@ -60,14 +60,14 @@ static void ip_copy_addrs(struct iphdr *iph, const struct flowi4 *fl4) {
  * @param flags
  * @return
  */
-struct sk_buff *self_defined_ip_make_skb(struct sock *sk,
-                                         struct flowi4 *fl4,
-                                         int getfrag(void *from, char *to, int offset,
+struct sk_buff *self_defined_lir_make_skb(struct sock *sk,
+                                          struct flowi4 *fl4,
+                                          int getfrag(void *from, char *to, int offset,
                                                      int len, int odd, struct sk_buff *skb),
-                                         void *from, int length, int transhdrlen,
-                                         struct ipcm_cookie *ipc,
-                                         struct inet_cork *cork, unsigned int flags,
-                                         struct RoutingCalcRes* rcr) {
+                                          void *from, int length, int transhdrlen,
+                                          struct ipcm_cookie *ipc,
+                                          struct inet_cork *cork, unsigned int flags,
+                                          struct RoutingCalcRes* rcr) {
     struct sk_buff_head queue;
     int err;
 
@@ -83,17 +83,17 @@ struct sk_buff *self_defined_ip_make_skb(struct sock *sk,
     if (err){
         return ERR_PTR(err);
     }
-    err = self_defined__ip_append_data(sk, fl4, &queue, cork,
-                                       &current->task_frag, getfrag,
-                                       from, length, transhdrlen, flags,
-                                       rcr);
+    err = self_defined__lir_append_data(sk, fl4, &queue, cork,
+                                        &current->task_frag, getfrag,
+                                        from, length, transhdrlen, flags,
+                                        rcr);
 
     if (err) {
         __ip_flush_pending_frames(sk, &queue, cork);
         return ERR_PTR(err);
     }
 
-    return self_defined__ip_make_skb(sk, fl4, &queue, cork, rcr);
+    return self_defined__lir_make_skb(sk, fl4, &queue, cork, rcr);
 }
 
 
@@ -105,16 +105,16 @@ struct sk_buff *self_defined_ip_make_skb(struct sock *sk,
  * @param cork cork 缓存信息
  * @return
  */
-struct sk_buff *self_defined__ip_make_skb(struct sock *sk,
-                                          struct flowi4 *fl4,
-                                          struct sk_buff_head *queue,
-                                          struct inet_cork *cork,
-                                          struct RoutingCalcRes* rcr) {
+struct sk_buff *self_defined__lir_make_skb(struct sock *sk,
+                                           struct flowi4 *fl4,
+                                           struct sk_buff_head *queue,
+                                           struct inet_cork *cork,
+                                           struct RoutingCalcRes* rcr) {
     struct sk_buff *skb, *tmp_skb;
     struct sk_buff **tail_skb;
     struct inet_sock *inet = inet_sk(sk);
     struct net *net = sock_net(sk);
-    struct PathValidationHeader *pvh;
+    struct LiRHeader *pvh;
     struct PathValidationStructure* pvs = get_pvs_from_ns(net);
     unsigned char* bloom_pointer_start = NULL;
     unsigned char* dest_pointer_start = NULL;
@@ -150,7 +150,7 @@ struct sk_buff *self_defined__ip_make_skb(struct sock *sk,
 
     // header initialization part
     // ---------------------------------------------------------------------------------------
-    pvh = pvh_hdr(skb); // 创建 header (总共9个字段 + 剩余的补充部分)
+    pvh = lir_hdr(skb); // 创建 header (总共9个字段 + 剩余的补充部分)
     pvh->version = 5; // 版本 (字段1)
     pvh->tos = (cork->tos != -1) ? cork->tos : inet->tos; // tos type_of_service (字段2)
     pvh->ttl = ttl; // ttl (字段3)
@@ -159,7 +159,7 @@ struct sk_buff *self_defined__ip_make_skb(struct sock *sk,
     pvh->id = 0; // 进行 id 的设置 (字段6) -> 如果不进行分片的话，那么 id 默认设置为 0
     pvh->check = 0; // 校验和字段 (字段7)
     pvh->source = rcr->source; // 设置源 (字段8)
-    pvh->hdr_len = sizeof(struct PathValidationHeader) + rcr->destination_info->number_of_destinations + pvs->bloom_filter->effective_bytes; // 设置数据包总长度 (字段9)
+    pvh->hdr_len = sizeof(struct LiRHeader) + rcr->destination_info->number_of_destinations + pvs->bloom_filter->effective_bytes; // 设置数据包总长度 (字段9)
     // tot_len 字段 10 (等待后面进行赋值)
     pvh->bf_len = (int)(pvs->bloom_filter->effective_bytes); // bf 有效字节数 (字段11)
     pvh->dest_len = (int)(rcr->destination_info->number_of_destinations); // 目的的长度 (字段12)
@@ -167,14 +167,14 @@ struct sk_buff *self_defined__ip_make_skb(struct sock *sk,
 
     // copy destinations
     // ---------------------------------------------------------------------------------------
-    dest_pointer_start = (unsigned char*)pvh + sizeof(struct PathValidationHeader);
+    dest_pointer_start = (unsigned char*)pvh + sizeof(struct LiRHeader);
     int memory_of_destinations = rcr->destination_info->number_of_destinations;
     memcpy(dest_pointer_start, rcr->destination_info->destinations, memory_of_destinations);
     // ---------------------------------------------------------------------------------------
 
     // copy bloom filter
     // ---------------------------------------------------------------------------------------
-    bloom_pointer_start = (unsigned char*)pvh + sizeof(struct PathValidationHeader) + memory_of_destinations;
+    bloom_pointer_start = (unsigned char*)pvh + sizeof(struct LiRHeader) + memory_of_destinations;
     memcpy(bloom_pointer_start, rcr->bitset, pvs->bloom_filter->effective_bytes);
     print_memory_in_hex(bloom_pointer_start, pvs->bloom_filter->effective_bytes);
     // ---------------------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 #include <net/xfrm.h>
 #include "tools/tools.h"
 #include "hooks/transport_layer/udp/udp_rcv/udp_rcv.h"
-#include "structure/path_validation_header.h"
+#include "structure/header/lir_header.h"
 
 
 char* udp_unicast_rcv_skb_str = "udp_unicast_rcv_skb";
@@ -27,7 +27,7 @@ bool resolve_udp_rcv_inner_functions_address(void){
 // 计算伪首部的
 static __wsum pv_compute_pseudo(struct sk_buff *skb, int proto)
 {
-    return csum_tcpudp_nofold(pvh_hdr(skb)->source, pvh_hdr(skb)->source,
+    return csum_tcpudp_nofold(lir_hdr(skb)->source, lir_hdr(skb)->source,
                               skb->len, proto, 0);
 }
 
@@ -35,7 +35,7 @@ static inline struct sock *copy__udp4_lib_lookup_skb(struct sk_buff *skb,
                                                      __be16 sport, __be16 dport,
                                                      struct udp_table *udptable, __be32 recv_addr)
 {
-    const struct PathValidationHeader *pvh = pvh_hdr(skb);
+    const struct LiRHeader *pvh = lir_hdr(skb);
 
     return __udp4_lib_lookup(dev_net(skb->dev), pvh->source, sport,
                              recv_addr, dport, inet_iif(skb),
@@ -97,7 +97,7 @@ int pv_udp_rcv_core(struct sk_buff *skb, struct udp_table *udptable, int proto, 
 
     uh   = udp_hdr(skb);
     ulen = ntohs(uh->len);
-    saddr = pvh_hdr(skb)->source;
+    saddr = lir_hdr(skb)->source;
     daddr = receive_addr;
 
     if (ulen > skb->len)

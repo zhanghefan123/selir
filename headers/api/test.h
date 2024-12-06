@@ -2,14 +2,20 @@
 // Created by zhf on 2024/11/21.
 //
 
-#ifndef SELIR_TEST_H
-#define SELIR_TEST_H
+#ifndef PVM_TEST_H
+#define PVM_TEST_H
 #include <net/ip.h>
-#define IP_NETWORK_TYPE 1
-#define PV_NETWORK_TYPE 2
+// 定义的网络类型
+#define NORMAL_SOCKET_TYPE 1
+#define LINK_IDENTIFIED_SOCKET_TYPE 2
+
+// 定义的协议类型
 #define IP_VERSION_NUMBER 4
-#define PV_VERSION_NUMBER 5
+#define LIR_VERSION_NUMBER 5
+#define ICING_VERSION_NUMBER 6
+#define OPT_VERSION_NUMBER 7
+#define SELIR_VERSION_NUMBER 8
+
 void test_apis(void);
-int resolve_network_type_from_sk(struct sock* sk);
-int resolve_network_type_from_skb(struct sk_buff* skb);
-#endif //SELIR_TEST_H
+int resolve_socket_type(struct sock* sk);
+#endif //PVM_TEST_H

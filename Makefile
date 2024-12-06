@@ -2,7 +2,7 @@
 # see online for more information
 CONFIG_MODULE_SIG=n
 # will build "hello.ko"
-obj-m += selir.o
+obj-m += pvm.o
 
 # we have no file "hello.c" in this example
 # therefore we specify: module hello.ko relies on
@@ -10,7 +10,7 @@ obj-m += selir.o
 # see online resources for more information
 # YOU DON'T need this IF you have *.c-file with the name of the
 # final kernel module :)
-selir-objs := \
+pvm-objs := \
 	src/api/ftrace_hook_api.o \
 	src/api/hook_functions_api.o \
 	src/api/check_srv6.o \
@@ -38,10 +38,15 @@ selir-objs := \
 	src/hooks/network_layer/ipv4/ip_local_deliver/impl.o \
 	src/hooks/network_layer/ipv4/ip_append_data/impl.o \
 	src/hooks/network_layer/ipv4/ip_local_out/impl.o \
-	src/hooks/network_layer/ipv4/ip_make_skb/impl.o \
+	src/hooks/network_layer/ipv4/ip_make_skb/lir_make_skb.o \
+	src/hooks/network_layer/ipv4/ip_make_skb/icing_make_skb.o \
+	src/hooks/network_layer/ipv4/ip_make_skb/opt_make_skb.o \
+	src/hooks/network_layer/ipv4/ip_make_skb/selir_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_output/impl.o \
+	src/hooks/network_layer/ipv4/ip_rcv/lir_rcv.o \
+	src/hooks/network_layer/ipv4/ip_rcv/icing_rcv.o \
+	src/hooks/network_layer/ipv4/ip_rcv/opt_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/hook.o \
-	src/hooks/network_layer/ipv4/ip_rcv/impl.o \
 	src/hooks/network_layer/ipv4/ip_send_check/impl.o \
 	src/hooks/network_layer/ipv4/ip_send_skb/impl.o \
 	src/hooks/network_layer/ipv4/ip_setup_cork/impl.o \
@@ -50,7 +55,7 @@ selir-objs := \
 	src/hooks/transport_layer/tcp/tcp_v4_rcv/hook.o \
 	src/hooks/transport_layer/tcp/tcp_rcv_established/impl.o \
 	src/hooks/transport_layer/tcp/tcp_v4_do_rcv/impl.o \
-	 src/hooks/transport_layer/udp/udp_rcv/impl.o \
+	src/hooks/transport_layer/udp/udp_rcv/impl.o \
 	src/hooks/transport_layer/udp/udp_send_skb/impl.o \
 	src/hooks/transport_layer/udp/udp_sendmsg/impl.o \
 	src/hooks/transport_layer/udp/udp_sendmsg/hook.o \
@@ -63,8 +68,8 @@ selir-objs := \
 OUTPUT_DIR = "./build"
 
 # 这个必须要是 headers 的绝对路径才能行
-ccflags-y += -I/home/zhf/Projects/srv6/linux/selir/headers
-#ccflags-y += -I/home/zhf/Projects/linux/selir/headers
+ccflags-y += -I/home/zhf/Projects/srv6/linux/path_validation_module/headers
+#ccflags-y += -I/home/zhf/Projects/linux/pvm/headers
 
 
 all: compile

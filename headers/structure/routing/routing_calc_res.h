@@ -15,16 +15,30 @@ struct RoutingCalcRes {
     int source;
     unsigned char *bitset; // 结果布隆过滤器
     struct net_device *output_interface; // 出接口
-    struct DestinationInfo *destination_info; // 目的信息
-    struct PathValidationStructure *pvs;  // 路径验证信息
+    struct DestinationAndProtocolInfo *destination_info; // 目的信息
+    int number_of_routes; // 路由条目数量
+    struct RoutingTableEntry** rtes; // 当为 ICING, OPT, SELIR 的时候返回的结果
 };
 
 // 2. 初始化计算结果
-struct RoutingCalcRes *init_rcr(int source,
-                                struct DestinationInfo *destination_info,
-                                struct PathValidationStructure* pvs);
+struct RoutingCalcRes *init_rcr(int source, struct DestinationAndProtocolInfo *destination_info, int bitset_length, int protocol);
 
 // 3. 释放路由计算结果
 void free_rcr(struct RoutingCalcRes *route_calculation_result);
+
+// 4. 根据 dest_and_proto_info 创建
+struct RoutingCalcRes *construct_rcr_with_dest_and_proto_info(struct PathValidationStructure *pvs, struct DestinationAndProtocolInfo *dest_and_proto, int source);
+
+// 5. 基于 abrt 创建
+struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct DestinationAndProtocolInfo *dest_and_proto_info,
+                                                               struct ArrayBasedRoutingTable* abrt,
+                                                               int source,
+                                                               int bitset_length);
+
+// 6. 基于 hbrt 创建
+struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct DestinationAndProtocolInfo *dest_and_proto_info,
+                                                               struct HashBasedRoutingTable* hbrt,
+                                                               int source,
+                                                               int bitset_length);
 
 #endif //LOADABLE_KERNEL_MODULE_ROUTING_CALC_RES_H

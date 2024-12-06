@@ -6,12 +6,13 @@
  * @param opt 选项
  * @return
  */
-struct DestinationInfo* resolve_option_for_destination_info(struct ip_options_rcu* opt){
+struct DestinationAndProtocolInfo* resolve_opt_for_dest_and_proto_info(struct ip_options_rcu* opt){
     int index;
-    int number_of_destinations = opt->opt.__data[OPTION_START_INDEX];
-    struct DestinationInfo* destination_info = initialize_destination_info(number_of_destinations);
+    int path_validation_protocol = opt->opt.__data[PATH_VALIDATION_PROTOCOL_INDEX];
+    int number_of_destinations = opt->opt.__data[NUMBER_OF_DESTINATIONS_INDEX];
+    struct DestinationAndProtocolInfo* destination_info = initialize_destination_info(path_validation_protocol, number_of_destinations);
     for(index = 0; index < number_of_destinations; index++){
-        destination_info->destinations[index] = opt->opt.__data[OPTION_START_INDEX + index + 1];
+        destination_info->destinations[index] = opt->opt.__data[DESTINATIONS_START_INDEX + index];
     }
     return destination_info;
 }

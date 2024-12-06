@@ -2,24 +2,20 @@
 #include "hooks/network_layer/ipv4/ip_rcv/ip_rcv.h"
 #include "hooks/network_layer/ipv4/ip_packet_forward/ip_packet_forward.h"
 #include "hooks/network_layer/ipv4/ip_local_deliver/ip_local_deliver.h"
-#include "structure/path_validation_header.h"
+#include "structure/header/lir_header.h"
 #include "structure/namespace/namespace.h"
 #include "structure/crypto/bloom_filter.h"
 #include <net/inet_ecn.h>
 #include <linux/inetdevice.h>
 
-int self_defined_ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev){
-    return 0;
-}
-
-int path_validation_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev){
+int lir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev){
     // 1. 初始化变量
     struct net* net = dev_net(dev);
-    struct PathValidationHeader* pvh = pvh_hdr(skb);
+    struct LiRHeader* pvh = lir_hdr(skb);
     struct PathValidationStructure* pvs = get_pvs_from_ns(net);
     int process_result;
     // 2. 进行消息的打印
-    PRINT_PVH(pvh);
+    PRINT_LIR_HEADER(pvh);
     // 3. 进行初级的校验
     skb = path_validation_rcv_validate(skb, net);
     // 4. 进行实际的转发
@@ -47,10 +43,10 @@ int path_validation_forward_packets(struct sk_buff* skb, struct PathValidationSt
     int index;
     int result = NET_RX_DROP; // 默认的情况是进行数据包的丢弃s
     struct ArrayBasedInterfaceTable* abit = pvs->abit;
-    struct PathValidationHeader* pvh = pvh_hdr(skb);
+    struct LiRHeader* pvh = lir_hdr(skb);
     unsigned char* previous_bf_bitset = pvs->bloom_filter->bitset;
-    unsigned char* dest_pointer_start =  (unsigned char*)(pvh) + sizeof(struct PathValidationHeader);
-    unsigned char* bloom_pointer_start = (unsigned char*)(pvh) + sizeof(struct PathValidationHeader) + pvh->dest_len;
+    unsigned char* dest_pointer_start =  (unsigned char*)(pvh) + sizeof(struct LiRHeader);
+    unsigned char* bloom_pointer_start = (unsigned char*)(pvh) + sizeof(struct LiRHeader) + pvh->dest_len;
     pvs->bloom_filter->bitset = bloom_pointer_start;
 
     // 2. 检查是否需要向上层进行提交
@@ -86,7 +82,7 @@ int path_validation_forward_packets(struct sk_buff* skb, struct PathValidationSt
 
 struct sk_buff* path_validation_rcv_validate(struct sk_buff* skb, struct net* net){
     // 获取头部
-    const struct PathValidationHeader *pvh;
+    const struct LiRHeader *pvh;
     // 丢包的原因
     int drop_reason;
     // 总的长度
@@ -122,7 +118,7 @@ struct sk_buff* path_validation_rcv_validate(struct sk_buff* skb, struct net* ne
         goto inhdr_error;
 
     // 解析网络层首部
-    pvh = pvh_hdr(skb);
+    pvh = lir_hdr(skb);
 
     /*
      *	RFC1122: 3.2.1.2 MUST silently discard any IP frame that fails the checksum.
@@ -145,7 +141,7 @@ struct sk_buff* path_validation_rcv_validate(struct sk_buff* skb, struct net* ne
     if (!pskb_may_pull(skb, pvh->hdr_len))
         goto inhdr_error;
 
-    pvh = pvh_hdr(skb);
+    pvh = lir_hdr(skb);
 
     // 如果校验和不正确的话, goto csum_error
     if (unlikely(ip_fast_csum((u8 *)pvh, pvh->hdr_len / 4)))
@@ -176,7 +172,7 @@ struct sk_buff* path_validation_rcv_validate(struct sk_buff* skb, struct net* ne
         goto drop;
     }
 
-    pvh = pvh_hdr(skb);
+    pvh = lir_hdr(skb);
 
     // 指向正确的传输层的头部
     skb->transport_header = skb->network_header + pvh->hdr_len;

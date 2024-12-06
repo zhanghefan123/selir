@@ -2,7 +2,7 @@
 #include "hooks/network_layer/ipv4/ip_output/ip_output.h"
 
 int pv_output(struct net *net, struct sock *sk, struct sk_buff *skb, struct net_device* output_interface){
-    struct net_device *dev = output_interface, *indev = skb->dev;
+    struct net_device *dev = output_interface;
 
     IP_UPD_PO_STATS(net, IPSTATS_MIB_OUT, skb->len);
 

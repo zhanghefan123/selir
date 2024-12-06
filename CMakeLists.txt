@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0.0 FATAL_ERROR)
 
-project("Loadable Kernel Module" VERSION 0.1.0 LANGUAGES C)
+project("Path Validation Module" VERSION 0.1.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 90)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -52,10 +52,15 @@ add_executable(lkm
         src/hooks/network_layer/ipv4/ip_local_out/impl.c
         src/hooks/network_layer/ipv4/ip_send_check/impl.c
         src/hooks/network_layer/ipv4/ip_output/impl.c
-        src/hooks/network_layer/ipv4/ip_rcv/impl.c
+        src/hooks/network_layer/ipv4/ip_rcv/lir_rcv.c
+        src/hooks/network_layer/ipv4/ip_rcv/icing_rcv.c
+        src/hooks/network_layer/ipv4/ip_rcv/opt_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/hook.c
         src/hooks/network_layer/ipv4/ip_append_data/impl.c
-        src/hooks/network_layer/ipv4/ip_make_skb/impl.c
+        src/hooks/network_layer/ipv4/ip_make_skb/lir_make_skb.c
+        src/hooks/network_layer/ipv4/ip_make_skb/icing_make_skb.c
+        src/hooks/network_layer/ipv4/ip_make_skb/opt_make_skb.c
+        src/hooks/network_layer/ipv4/ip_make_skb/selir_make_skb.c
         src/hooks/network_layer/ipv4/ip_send_skb/impl.c
         src/hooks/network_layer/ipv4/ip_setup_cork/impl.c
         src/hooks/network_layer/ipv4/ip_packet_forward/impl.c

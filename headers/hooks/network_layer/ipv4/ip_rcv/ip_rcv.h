@@ -7,9 +7,10 @@
 #include <net/ip.h>
 #include "api/ftrace_hook_api.h"
 #include "structure/path_validation_structure.h"
-#include "structure/path_validation_header.h"
-int path_validation_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type *pt, struct net_device* orig_dev);
-int self_defined_ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev);
+#include "structure/header/lir_header.h"
+int lir_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type *pt, struct net_device* orig_dev);
+int icing_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev);
+int opt_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type *pt, struct net_device* orig_dev);
 void add_ip_rcv_to_hook(void);
 struct sk_buff* path_validation_rcv_validate(struct sk_buff* skb, struct net* net);
 int path_validation_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev);

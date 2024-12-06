@@ -35,10 +35,10 @@ bool resolve_udp_sendmsg_inner_functions_address(void){
  * @return
  */
 asmlinkage int hook_udp_sendmsg(struct sock* sk, struct msghdr* msg, size_t len){
-    int network_type = resolve_network_type_from_sk(sk);
-    if (IP_NETWORK_TYPE == network_type) {
+    int network_type = resolve_socket_type(sk);
+    if (NORMAL_SOCKET_TYPE == network_type) {
         return orig_udp_sendmsg(sk, msg, len);
-    } else if (PV_NETWORK_TYPE == network_type){
+    } else if (LINK_IDENTIFIED_SOCKET_TYPE == network_type){
         return self_defined_udp_sendmsg(sk,msg,len);
     } else {
         LOG_WITH_PREFIX("unsupported network type");

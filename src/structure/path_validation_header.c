@@ -1,14 +1,14 @@
 #include "tools/tools.h"
-#include "structure/path_validation_header.h"
+#include "structure/header/lir_header.h"
 
 /**
  * 进行完整的报文头的打印
  * @param pvh 路径验证报文头
  */
-void PRINT_PVH(struct PathValidationHeader* pvh){
-    unsigned char* dest_pointer_start = (unsigned char*)(pvh) + sizeof(struct PathValidationHeader);
-    unsigned char* bloom_pointer_start = (unsigned char*)(pvh) + sizeof(struct PathValidationHeader) + pvh->dest_len;
-    unsigned char* application_pointer_start = (unsigned char*)(pvh) + sizeof(struct PathValidationHeader) + sizeof(struct udphdr);
+void PRINT_LIR_HEADER(struct LiRHeader* pvh){
+    unsigned char* dest_pointer_start = (unsigned char*)(pvh) + sizeof(struct LiRHeader);
+    unsigned char* bloom_pointer_start = (unsigned char*)(pvh) + sizeof(struct LiRHeader) + pvh->dest_len;
+    unsigned char* application_pointer_start = (unsigned char*)(pvh) + sizeof(struct LiRHeader) + sizeof(struct udphdr);
     LOG_WITH_EDGE("path validation header");
     // 1. 进行各个字段的打印
     printk(KERN_EMERG "version: %d\n", pvh->version);

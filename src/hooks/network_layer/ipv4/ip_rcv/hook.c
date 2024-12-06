@@ -8,11 +8,18 @@ asmlinkage int hook_ip_rcv(struct sk_buff *skb,
                            struct net_device *dev,
                            struct packet_type *pt,
                            struct net_device *orig_dev) {
-    int network_type = resolve_network_type_from_skb(skb);
-    if(IP_NETWORK_TYPE == network_type){
+    int version_number = ip_hdr(skb)->version;
+    if (IP_VERSION_NUMBER == version_number){
         return orig_ip_rcv(skb, dev, pt, orig_dev);
+    } else if (LIR_VERSION_NUMBER == version_number) {
+        return lir_rcv(skb, dev, pt, orig_dev);
+    } else if (ICING_VERSION_NUMBER == version_number) {
+        return icing_rcv(skb, dev, pt, orig_dev);
+    } else if (OPT_VERSION_NUMBER == version_number) {
+        return opt_rcv(skb, dev, pt, orig_dev);
     } else {
-        return path_validation_rcv(skb, dev, pt, orig_dev);
+        LOG_WITH_PREFIX("unknown packet type");
+        return -EINVAL;
     }
 }
 

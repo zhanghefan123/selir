@@ -10,7 +10,7 @@
 #include <net/ip.h>
 
 
-struct PathValidationHeader {
+struct LiRHeader {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
     __u8 useless: 4,version: 4; // 字段1
 #elif defined (__BIG_ENDIAN_BITFIELD)
@@ -33,10 +33,10 @@ struct PathValidationHeader {
     unsigned char data[0];  // 额外的部分 (这里是指的 bf 的 bitarray)
 };
 
-static inline struct PathValidationHeader *pvh_hdr(const struct sk_buff *skb) {
-    return (struct PathValidationHeader *) skb_network_header(skb);
+static inline struct LiRHeader *lir_hdr(const struct sk_buff *skb) {
+    return (struct LiRHeader *) skb_network_header(skb);
 }
 
-void PRINT_PVH(struct PathValidationHeader* pvh);
+void PRINT_LIR_HEADER(struct LiRHeader* pvh);
 
 #endif //LOADABLE_KERNEL_MODULE_PATH_VALIDATION_HEADER_H

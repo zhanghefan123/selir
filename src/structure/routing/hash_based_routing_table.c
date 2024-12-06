@@ -1,5 +1,4 @@
 #include "tools/tools.h"
-#include "structure/routing/variables.h"
 #include "structure/routing/hash_based_routing_table.h"
 
 /**
@@ -111,6 +110,7 @@ int free_hbrt(struct HashBasedRoutingTable *hbrt) {
         struct hlist_head *hash_bucket = NULL;
         struct RoutingTableEntry *current_entry = NULL;
         struct hlist_node *next;
+        printk(KERN_EMERG "hash bucket count: %d \n", hbrt->bucket_count);
         for (index = 0; index < hbrt->bucket_count; index++) {
             hash_bucket = &hbrt->bucket_array[index];
             // 每一个 hash_bucket 都被初始化过了，所以不能为NULL
@@ -125,10 +125,14 @@ int free_hbrt(struct HashBasedRoutingTable *hbrt) {
         }
         // 清空 head_pointer_list 引入的 memory 开销
         if (NULL != hbrt->bucket_array){
+            // 可能发生错误的位置1
+            printk(KERN_EMERG "error location 1 \n");
             kfree(hbrt->bucket_array);
             hbrt->bucket_array = NULL;
         }
         // 释放 hbrt
+        // 可能发生错误的位置2
+        printk(KERN_EMERG "error location 2 \n");
         kfree(hbrt);
         hbrt = NULL;
         LOG_WITH_PREFIX("delete hash based routing table successfully!");
@@ -160,53 +164,4 @@ struct RoutingTableEntry *find_sre_in_hbrt(struct HashBasedRoutingTable *hbrt, i
         }
     }
     return NULL;
-}
-
-/**
- *
- * @param hbrt 基于哈希的路由表
- * @param destination_info 目的节点信息
- * @param bf_effective_bytes bf 的有效字节数
- * @param source_node_id 源节点 id
- * @param number_of_interfaces 接口的数量
- * @return
- */
-struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct HashBasedRoutingTable *hbrt,
-                                                               int source_node_id,
-                                                               struct DestinationInfo *destination_info,
-                                                               struct PathValidationStructure* pvs) {
-    // 1.索引
-    int index;
-
-    // 2.创建 rcr
-    struct RoutingCalcRes *rcr = init_rcr(source_node_id, destination_info, pvs);
-
-    // 3.使用基于主节点的方式
-    // -----------------------------------------------------------------------------------------
-    // 3.1  首先找到主节点
-    int primaryNodeId = destination_info->destinations[0];
-    // 3.2  找到到主节点的路由
-    struct RoutingTableEntry *source_to_primary = find_sre_in_hbrt(hbrt,
-                                                                   source_node_id,
-                                                                   primaryNodeId);
-
-    print_memory_in_hex(source_to_primary->bitset, pvs->bloom_filter->effective_bytes);
-
-    // 2. 更新出接口和 bitset
-    rcr->output_interface = source_to_primary->output_interface->interface;
-    memory_or(rcr->bitset, source_to_primary->bitset, pvs->bloom_filter->effective_bytes);
-
-    // 3. 接着找到主节点到其他节点的路由
-    for (index = 1; index < destination_info->number_of_destinations; index++) {
-        int otherNodeId = destination_info->destinations[index];
-        struct RoutingTableEntry *primary_to_other = find_sre_in_hbrt(hbrt,
-                                                                      primaryNodeId,
-                                                                      otherNodeId);
-        // 进行 bitset 的更新
-        memory_or(rcr->bitset, primary_to_other->bitset, pvs->bloom_filter->effective_bytes);
-        LOG_WITH_PREFIX("hello");
-    }
-
-    // 4. 进行结果的返回
-    return rcr;
 }

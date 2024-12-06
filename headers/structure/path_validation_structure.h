@@ -23,7 +23,6 @@ struct PathValidationStructure {
     struct ArrayBasedInterfaceTable *abit;
     // 布隆过滤器
     struct BloomFilter *bloom_filter;
-
 };
 
 struct PathValidationStructure *initialize_pvs(void);

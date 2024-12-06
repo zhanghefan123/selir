@@ -2,7 +2,6 @@
 #include <net/udplite.h>
 #include <linux/bpf-cgroup.h>
 #include <linux/inetdevice.h>
-
 #include "api/test.h"
 #include "tools/tools.h"
 #include "structure/routing/variables.h"
@@ -76,31 +75,23 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     // 4. 选项
     struct ip_options_rcu* option;
     // 5. 由选项解析的目的地
-    struct DestinationInfo* destination_info;
-    // 6. 变量赋值
+    struct DestinationAndProtocolInfo* dest_and_proto_info;
+    // 6. 源节点
+    int source;
+    // 7. 变量赋值
     current_ns = sock_net(sk);
     pvs = get_pvs_from_ns(current_ns);
     option = inet->inet_opt;
-    destination_info = resolve_option_for_destination_info(option);
+    dest_and_proto_info = resolve_opt_for_dest_and_proto_info(option);
+    source = pvs->node_id;
     // -----------------------------------------------------
 
     // zhf add new code -- search route
     // -----------------------------------------------------
-    if (pvs->routing_table_type == ARRAY_BASED_ROUTING_TABLE_TYPE) {
-        rcr = construct_rcr_with_dest_info_under_abrt(pvs->abrt,
-                                                      pvs->node_id,
-                                                      destination_info,
-                                                      pvs);
-    } else if (pvs->routing_table_type == HASH_BASED_ROUTING_TABLE_TYPE) {
-        rcr = construct_rcr_with_dest_info_under_hbrt(pvs->hbrt,
-                                                      pvs->node_id,
-                                                      destination_info,
-                                                      pvs);
-    } else {
-        LOG_WITH_PREFIX("unsupported routing table type");
-        return -EOPNOTSUPP;
+    rcr = construct_rcr_with_dest_and_proto_info(pvs, dest_and_proto_info, source);
+    if (NULL == rcr){
+        return -EINVAL;
     }
-
     // -----------------------------------------------------
 
     // 当长度超大, 返回消息大小错误信息
@@ -115,7 +106,7 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     if (msg->msg_flags & MSG_OOB) /* Mirror BSD error message compatibility */
         return -EOPNOTSUPP;
 
-    // frag 方式
+    // getfrag 负责从用户空间 mv 数据下来
     getfrag = is_udplite ? udplite_getfrag : ip_generic_getfrag;
 
     fl4 = &inet->cork.fl.u.ip4;
@@ -161,7 +152,6 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     // 用于过滤和处理 UDP 数据包的发送操作。CGROUP_UDP4_SENDMSG 是一个用于标识 UDPv4 发送消息的 cgroup 类型。
     // !connected：确保当前的套接字不是处于已连接状态。这个条件的目的是确保只对非连接套接字进行 BPF 程序处理。
     if (cgroup_bpf_enabled(CGROUP_UDP4_SENDMSG) && !connected) {
-
         // 2. 这一行调用了 BPF 程序，运行一个与 UDP 发送消息相关的 BPF 程序 BPF_CGROUP_RUN_PROG_UDP4_SENDMSG_LOCK。
         // BPF_CGROUP_RUN_PROG_UDP4_SENDMSG_LOCK 是用于调用 BPF 程序并对 UDP 发送数据包进行处理。
         err = BPF_CGROUP_RUN_PROG_UDP4_SENDMSG_LOCK(sk,(struct sockaddr *) usin, &ipc.addr);
@@ -268,7 +258,6 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     // ----------------------------------------------------------------------------
     saddr = rcr->output_interface->ip_ptr->ifa_list->ifa_address;
     fl4->saddr = saddr;
-    //    printk(KERN_EMERG "after routing saddr = %pI4", &saddr); // after routing saddr = 192.168.0.1
     // ----------------------------------------------------------------------------
 
     if (!ipc.addr)
@@ -279,13 +268,38 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     // ----------------------------------------------------------------------------
     if (!corkreq) {
         LOG_WITH_PREFIX("path validation send packet");
+        int index;
         struct inet_cork cork;
-        skb = self_defined_ip_make_skb(sk, fl4, getfrag, msg, ulen,
-                                       sizeof(struct udphdr), &ipc,
-                                       &cork, msg->msg_flags, rcr);
+        // 进行不同类型的路径验证协议的解析
+        // ------------------------------------------------------------------------------
+        if(LIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol){
+            skb = self_defined_lir_make_skb(sk, fl4, getfrag, msg, ulen,
+                                            sizeof(struct udphdr), &ipc,
+                                            &cork, msg->msg_flags, rcr);
+        } else if(ICING_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol){
+            skb = self_defined_icing_make_skb(sk, fl4, getfrag, msg, ulen,
+                                              sizeof(struct udphdr), &ipc,
+                                              &cork, msg->msg_flags, rcr);
+        } else if(OPT_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol){
+            skb = self_defined_opt_make_skb(sk, fl4, getfrag, msg, ulen,
+                                            sizeof(struct udphdr), &ipc,
+                                            &cork, msg->msg_flags, rcr);
+        } else if(SELIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
+            skb = self_defined_selir_make_skb(sk, fl4, getfrag, msg, ulen,
+                                              sizeof(struct udphdr), &ipc,
+                                              &cork, msg->msg_flags, rcr);
+        } else {
+            LOG_WITH_PREFIX("unsupported protocol");
+            return -EINVAL;
+        }
+        // ------------------------------------------------------------------------------
         err = PTR_ERR(skb);
         if (!IS_ERR_OR_NULL(skb))
+        {
+            // 当 skb_copy 的时候并不会进行 skb->sk 的拷贝
             err = self_defined_udp_send_skb(skb, fl4, &cork, rcr->output_interface);
+        }
+        kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
         goto out;
     }
     // ----------------------------------------------------------------------------
@@ -296,7 +310,7 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
         kfree(ipc.opt);
     if (!err){
         free_rcr(rcr);
-        free_destination_info(destination_info);
+        free_destination_info(dest_and_proto_info);
         return (int)len;
     }
 

@@ -28,15 +28,12 @@ bool resolve_inet_sendmsg_inner_functions_address(void) {
 
 int self_defined_inet_sendmsg(struct socket *sock, struct msghdr *msg, size_t size){
     struct sock *sk = sock->sk;
-
-//    if (unlikely(inet_send_prepare(sk)))
-//        return -EAGAIN;
-
     if (sk->sk_prot->sendmsg == orig_udp_sendmsg){
-        int network_type = resolve_network_type_from_sk(sk);
-        if (IP_NETWORK_TYPE == network_type) {
+        int network_type = resolve_socket_type(sk);
+        if (NORMAL_SOCKET_TYPE == network_type) {
             return orig_udp_sendmsg(sk, msg, size);
-        } else if (PV_NETWORK_TYPE == network_type){
+        } else if (LINK_IDENTIFIED_SOCKET_TYPE == network_type){
+            // 可以进一步进行解析 -> 看是 LiR, ICING, OPT
             return self_defined_udp_sendmsg(sk, msg,size);;
         } else {
             return -EINVAL;

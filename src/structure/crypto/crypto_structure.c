@@ -1,5 +1,6 @@
 #include "tools/tools.h"
 #include "structure/crypto/crypto_structure.h"
+#include <crypto/ecdh.h>
 
 unsigned char* hash_output = NULL;
 unsigned char* hmac_output = NULL;

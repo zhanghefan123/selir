@@ -1,7 +1,7 @@
 #include <net/protocol.h>
 #include <net/xfrm.h>
 #include <net/icmp.h>
-#include "structure/path_validation_header.h"
+#include "structure/header/lir_header.h"
 #include "hooks/transport_layer/udp/udp_rcv/udp_rcv.h"
 #include "hooks/network_layer/ipv4/ip_local_deliver/ip_local_deliver.h"
 
@@ -13,7 +13,7 @@ int pv_local_deliver(struct sk_buff* skb, __be32 receive_interface_addr){
     __skb_pull(skb, skb_network_header_len(skb));
     rcu_read_lock();
     // ---------------------------------------------------------------
-    pv_protocol_deliver_rcu(net, skb, pvh_hdr(skb)->protocol, receive_interface_addr);
+    pv_protocol_deliver_rcu(net, skb, lir_hdr(skb)->protocol, receive_interface_addr);
     // ---------------------------------------------------------------
     rcu_read_unlock();
     return 0;

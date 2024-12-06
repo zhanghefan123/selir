@@ -1,7 +1,7 @@
 #include "tools/tools.h"
 #include "hooks/network_layer/ipv4/ip_setup_cork/ip_setup_cork.h"
 #include "hooks/network_layer/ipv4/ip_append_data/ip_append_data.h"
-#include "structure/path_validation_header.h"
+#include "structure/header/lir_header.h"
 #include "structure/namespace/namespace.h"
 
 char *ip_local_error_str = "ip_local_error";
@@ -54,16 +54,16 @@ int self_defined_ip_append_data(struct sock *sk, struct flowi4 *fl4,
 }
 */
 
-int self_defined__ip_append_data(struct sock *sk,
-                                 struct flowi4 *fl4,
-                                 struct sk_buff_head *queue,
-                                 struct inet_cork *cork,
-                                 struct page_frag *pfrag,
-                                 int getfrag(void *from, char *to, int offset,
+int self_defined__lir_append_data(struct sock *sk,
+                                  struct flowi4 *fl4,
+                                  struct sk_buff_head *queue,
+                                  struct inet_cork *cork,
+                                  struct page_frag *pfrag,
+                                  int getfrag(void *from, char *to, int offset,
                                              int len, int odd, struct sk_buff *skb),
-                                 void *from, int app_and_transport_len, int transport_hdr_len,
-                                 unsigned int flags,
-                                 struct RoutingCalcRes* rcr) {
+                                  void *from, int app_and_transport_len, int transport_hdr_len,
+                                  unsigned int flags,
+                                  struct RoutingCalcRes* rcr) {
     // zhf add code 获取 path validation structure
     // -----------------------------------
     struct net *current_ns = sock_net(sk);
@@ -95,7 +95,7 @@ int self_defined__ip_append_data(struct sock *sk,
 
     // zhf add code 进行路径长度的获取
     // -----------------------------------------------------------
-    int length_of_header = sizeof(struct PathValidationHeader) + rcr->destination_info->number_of_destinations + pvs->bloom_filter->effective_bytes;
+    int length_of_header = sizeof(struct LiRHeader) + rcr->destination_info->number_of_destinations + pvs->bloom_filter->effective_bytes;
     // -----------------------------------------------------------
 
     fragheaderlen = length_of_header;
