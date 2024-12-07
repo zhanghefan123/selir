@@ -9,8 +9,8 @@
 #include <linux/slab.h>
 
 // 全局变量
-extern unsigned char* hash_output; // hash 输出
-extern unsigned char* hmac_output; // hmac 输出
+//extern unsigned char* hash_output; // hash 输出
+//extern unsigned char* hmac_output; // hmac 输出
 
 // 生成 hash api
 struct shash_desc* generate_hash_api(void);
@@ -25,12 +25,9 @@ void free_crypto_api(struct shash_desc* crypto_api);
 void test_crypto_apis(void);
 
 // 进行哈希计算
-void calculate_hash(struct shash_desc* hash_api, char* data);
+unsigned char* calculate_hash(struct shash_desc* hash_api, char* data, int length);
 
 // 进行 hmac 计算
-void calculate_hmac(struct shash_desc* hmac_api, char* data, char* key);
-
-// 进行计算结果的释放
-void release_hash_and_hmac_output(void);
+unsigned char* calculate_hmac(struct shash_desc* hmac_api, char* data, char* key, int length);
 
 #endif //LOADABLE_KERNEL_MODULE_CRYPTO_FUNCTION_H

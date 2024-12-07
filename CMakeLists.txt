@@ -48,6 +48,7 @@ add_executable(lkm
         src/hooks/transport_layer/udp/udp_sendmsg/impl.c
         src/hooks/transport_layer/udp/udp_sendmsg/hook.c
 
+        src/hooks/network_layer/ipv4/ip_flush_pending_frames/impl.c
         src/hooks/network_layer/ipv4/ip_local_deliver/impl.c
         src/hooks/network_layer/ipv4/ip_local_out/impl.c
         src/hooks/network_layer/ipv4/ip_send_check/impl.c

@@ -1,9 +1,9 @@
 #include "tools/tools.h"
 #include "structure/crypto/crypto_structure.h"
-#include <crypto/ecdh.h>
 
-unsigned char* hash_output = NULL;
-unsigned char* hmac_output = NULL;
+// 如果想要采用全局的变量是不行的
+//unsigned char* hash_output = NULL;
+//unsigned char* hmac_output = NULL;
 
 /**
  * 创建 hash 数据结构
@@ -37,20 +37,19 @@ struct shash_desc* generate_hash_api(void) {
  * @param data 实际的数据
  * @return
  */
-void calculate_hash(struct shash_desc* hash_api, char* data){
+unsigned char* calculate_hash(struct shash_desc* hash_api, char* data, int length){
     // 如果 hash_output 还没有分配内存 -> 那么就进行内存的分配
-    if (NULL == hash_output) {
-        hash_output =  (unsigned char*) kmalloc(sizeof(unsigned char) * 20, GFP_KERNEL);
-    }
+    unsigned char* hash_output = (unsigned char*) kmalloc(sizeof(unsigned char) * 20, GFP_KERNEL);
     if(crypto_shash_init(hash_api)){
-        return;
+        NULL;
     }
-    if(crypto_shash_update(hash_api, data, strlen(data))){
-        return;
+    if(crypto_shash_update(hash_api, data, length)){
+        NULL;
     }
     if(crypto_shash_final(hash_api, hash_output)){
-        return;
+        NULL;
     }
+    return hash_output;
 }
 
 /**
@@ -58,27 +57,28 @@ void calculate_hash(struct shash_desc* hash_api, char* data){
  * @param hmac_api hmac api
  * @param data 实际的数据
  * @param key 使用的密钥
+ * @param data 的长度
  * @return
  */
-void calculate_hmac(struct shash_desc* hmac_api, char* data, char* key){
+unsigned char* calculate_hmac(struct shash_desc* hmac_api, char* data, char* key, int length){
     // 判断是否 hmac_api 为 NULl
     if((NULL == hmac_api) || (NULL == hmac_api -> tfm)){
-        return;
+        return NULL;
     }
 
-    // 判断 hmac 是否已经分配了内存 -> 如果还没有就进行内存的分配
-    if(NULL == hmac_output){
-        hmac_output = (unsigned char*) kmalloc(sizeof(unsigned char) * 20, GFP_KERNEL);
-    }
+    // 进行输出的内存的分配
+    unsigned char* hmac_output = (unsigned char*) kmalloc(sizeof(unsigned char) * 20, GFP_KERNEL);
 
     // 设置密钥
     if (crypto_shash_setkey(hmac_api->tfm, key, strlen(key))) {
-        return;
+        return NULL;
     }
     // 计算 hmac
-    if (crypto_shash_digest(hmac_api, data, strlen(data), hmac_output)) {
-        return;
+    if (crypto_shash_digest(hmac_api, data, length, hmac_output)) {
+        return NULL;
     }
+
+    return hmac_output;
 }
 
 /**
@@ -122,34 +122,20 @@ void free_crypto_api(struct shash_desc* crypto_api) {
 }
 
 /**
- * 释放 hash 和 hmac 的输出
- */
-void release_hash_and_hmac_output(void){
-    if (NULL != hash_output){
-        kfree(hash_output);
-        hash_output = NULL;
-    }
-    if (NULL != hmac_output){
-        kfree(hmac_output);
-        hmac_output = NULL;
-    }
-}
-
-/**
  * 进行 hash 和 hmac 的测试
  */
 void test_crypto_apis(void){
     // 测试哈希函数
     struct shash_desc* hash_api = generate_hash_api();
-    calculate_hash(hash_api, "123");
+    unsigned char* hash_output = calculate_hash(hash_api, "123", strlen("123"));
     print_memory_in_hex(hash_output, 20);
     // 测试MAC函数
     struct shash_desc* hmac_api = generate_hmac_api();
-    calculate_hmac(hmac_api, "123", "123");
+    unsigned char* hmac_output = calculate_hmac(hmac_api, "123", "123", strlen("123"));
     print_memory_in_hex(hmac_output, 4);
-    // 进行内存的释放
-    release_hash_and_hmac_output();
     // 进行api的释放
     free_crypto_api(hash_api);
     free_crypto_api(hmac_api);
+    kfree(hash_output);
+    kfree(hmac_output);
 }

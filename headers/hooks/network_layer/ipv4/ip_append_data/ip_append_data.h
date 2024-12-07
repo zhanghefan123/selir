@@ -21,15 +21,16 @@ int self_defined_ip_append_data(struct sock *sk, struct flowi4 *fl4,
                                 unsigned int flags);
                                 */
 
-int self_defined__lir_append_data(struct sock *sk,
-                                  struct flowi4 *fl4,
-                                  struct sk_buff_head *queue,
-                                  struct inet_cork *cork,
-                                  struct page_frag *pfrag,
-                                  int getfrag(void *from, char *to, int offset,
+int self_defined__xx_append_data(struct sock *sk,
+                                 struct flowi4 *fl4,
+                                 struct sk_buff_head *queue,
+                                 struct inet_cork *cork,
+                                 struct page_frag *pfrag,
+                                 int getfrag(void *from, char *to, int offset,
                                              int len, int odd, struct sk_buff *skb),
-                                  void *from, int app_and_transport_len, int transport_hdr_len,
-                                  unsigned int flags,
-                                  struct RoutingCalcRes* rcr);
+                                 void *from, int app_and_transport_len, int transport_hdr_len,
+                                 unsigned int flags,
+                                 struct RoutingCalcRes* rcr,
+                                         int header_size);
 
 #endif //LOADABLE_KERNEL_MODULE_IP_APPEND_DATA_H

@@ -54,16 +54,33 @@ int self_defined_ip_append_data(struct sock *sk, struct flowi4 *fl4,
 }
 */
 
-int self_defined__lir_append_data(struct sock *sk,
-                                  struct flowi4 *fl4,
-                                  struct sk_buff_head *queue,
-                                  struct inet_cork *cork,
-                                  struct page_frag *pfrag,
-                                  int getfrag(void *from, char *to, int offset,
+/**
+ *
+ * @param sk
+ * @param fl4
+ * @param queue
+ * @param cork
+ * @param pfrag
+ * @param getfrag
+ * @param from
+ * @param app_and_transport_len
+ * @param transport_hdr_len
+ * @param flags
+ * @param rcr
+ * @param header_size zhf add parameter 代表头部的长度
+ * @return
+ */
+int self_defined__xx_append_data(struct sock *sk,
+                                 struct flowi4 *fl4,
+                                 struct sk_buff_head *queue,
+                                 struct inet_cork *cork,
+                                 struct page_frag *pfrag,
+                                 int getfrag(void *from, char *to, int offset,
                                              int len, int odd, struct sk_buff *skb),
-                                  void *from, int app_and_transport_len, int transport_hdr_len,
-                                  unsigned int flags,
-                                  struct RoutingCalcRes* rcr) {
+                                 void *from, int app_and_transport_len, int transport_hdr_len,
+                                 unsigned int flags,
+                                 struct RoutingCalcRes* rcr,
+                                 int header_size) {
     // zhf add code 获取 path validation structure
     // -----------------------------------
     struct net *current_ns = sock_net(sk);
@@ -95,7 +112,7 @@ int self_defined__lir_append_data(struct sock *sk,
 
     // zhf add code 进行路径长度的获取
     // -----------------------------------------------------------
-    int length_of_header = sizeof(struct LiRHeader) + rcr->destination_info->number_of_destinations + pvs->bloom_filter->effective_bytes;
+    int length_of_header = header_size;
     // -----------------------------------------------------------
 
     fragheaderlen = length_of_header;

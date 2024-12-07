@@ -23,9 +23,13 @@ struct PathValidationStructure {
     struct ArrayBasedInterfaceTable *abit;
     // 布隆过滤器
     struct BloomFilter *bloom_filter;
+    // 哈希结构体
+    struct shash_desc* hash_api;
+    // hmac结构体
+    struct shash_desc* hmac_api;
 };
 
-struct PathValidationStructure *initialize_pvs(void);
+struct PathValidationStructure *init_pvs(void);
 
 void free_pvs(struct PathValidationStructure *pvs);
 

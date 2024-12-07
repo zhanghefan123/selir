@@ -31,6 +31,7 @@ pvm-objs := \
 	src/structure/routing/routing_table_entry.o \
 	src/hooks/inet_sendmsg/impl.o \
 	src/hooks/inet_sendmsg/hook.o \
+	src/hooks/network_layer/ipv4/ip_flush_pending_frames/impl.o\
 	src/hooks/network_layer/ipv6/ipv6_rcv/hook.o \
 	src/hooks/network_layer/ipv6/ipv6_rcv/impl.o \
 	src/hooks/network_layer/ipv6/ipv6_rcv_finish/impl.o \

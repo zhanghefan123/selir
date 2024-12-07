@@ -44,9 +44,11 @@ void free_rcr(struct RoutingCalcRes *route_calculation_result) {
         // 进行 bitsets 的释放
         if (NULL != route_calculation_result->bitset) {
             kfree(route_calculation_result->bitset);
+            route_calculation_result->bitset = NULL;
         }
         if (NULL != route_calculation_result->rtes){
             kfree(route_calculation_result->rtes);
+            route_calculation_result->rtes = NULL;
         }
         // 进行 RoutingCalcRes 结构占用的内存的释放
         kfree(route_calculation_result);
@@ -117,9 +119,6 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct Destinatio
         }
         return rcr;
     }
-
-
-
 }
 
 /**

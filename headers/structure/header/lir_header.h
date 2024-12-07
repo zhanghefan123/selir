@@ -26,10 +26,10 @@ struct LiRHeader {
     __u16 id;               // 分片相关 字段6
     __sum16 check;          // 校验和 字段7
     __u16 source;           // 源节点编号 字段8
-    int hdr_len;            // 头部总长度 字段9
-    int tot_len;            // 总的长度 字段10
-    int bf_len;             // 布隆过滤器长度 字段11
-    int dest_len;           // 目的节点个数 字段12
+    __u16 hdr_len;            // 头部总长度 字段9
+    __u16 tot_len;            // 总的长度 字段10
+    __u16 bf_len;             // 布隆过滤器长度 字段11
+    __u16 dest_len;           // 目的节点个数 字段12
     unsigned char data[0];  // 额外的部分 (这里是指的 bf 的 bitarray)
 };
 

@@ -1,33 +1,17 @@
 #include <net/ip.h>
 #include <net/icmp.h>
+#include "api/test.h"
 #include "tools/tools.h"
 #include "hooks/network_layer/ipv4/ip_make_skb/ip_make_skb.h"
 #include "hooks/network_layer/ipv4/ip_setup_cork/ip_setup_cork.h"
 #include "hooks/network_layer/ipv4/ip_append_data/ip_append_data.h"
+#include "hooks/network_layer/ipv4/ip_flush_pending_frames/ip_flush_pending_frames.h"
 #include "structure/routing/routing_calc_res.h"
 #include "structure/header/lir_header.h"
 #include "structure/namespace/namespace.h"
 
-/**
- * 进行 cork 的 release
- * @param cork
- */
-static void ip_cork_release(struct inet_cork *cork) {
-    cork->flags &= ~IPCORK_OPT;
-    kfree(cork->opt);
-    cork->opt = NULL;
-}
 
-static void __ip_flush_pending_frames(struct sock *sk,
-                                      struct sk_buff_head *queue,
-                                      struct inet_cork *cork) {
-    struct sk_buff *skb;
 
-    while ((skb = __skb_dequeue_tail(queue)) != NULL)
-        kfree_skb(skb);
-
-    ip_cork_release(cork);
-}
 
 static inline int ip_select_ttl(struct inet_sock *inet, struct dst_entry *dst) {
     int ttl = inet->uc_ttl;
@@ -37,12 +21,8 @@ static inline int ip_select_ttl(struct inet_sock *inet, struct dst_entry *dst) {
     return ttl;
 }
 
-static void ip_copy_addrs(struct iphdr *iph, const struct flowi4 *fl4) {
-    BUILD_BUG_ON(offsetof(typeof(*fl4), daddr) !=
-                         offsetof(typeof(*fl4), saddr) + sizeof(fl4->saddr));
-
-    iph->saddr = fl4->saddr;
-    iph->daddr = fl4->daddr;
+static int get_lir_header_size(struct RoutingCalcRes* rcr, struct PathValidationStructure* pvs) {
+    return sizeof(struct LiRHeader) + rcr->destination_info->number_of_destinations + pvs->bloom_filter->effective_bytes;
 }
 
 
@@ -70,6 +50,8 @@ struct sk_buff *self_defined_lir_make_skb(struct sock *sk,
                                           struct RoutingCalcRes* rcr) {
     struct sk_buff_head queue;
     int err;
+    struct net* current_ns = sock_net(sk);
+    struct PathValidationStructure* pvs = get_pvs_from_ns(current_ns);
 
     if (flags & MSG_PROBE)
         return NULL;
@@ -83,10 +65,13 @@ struct sk_buff *self_defined_lir_make_skb(struct sock *sk,
     if (err){
         return ERR_PTR(err);
     }
-    err = self_defined__lir_append_data(sk, fl4, &queue, cork,
-                                        &current->task_frag, getfrag,
-                                        from, length, transhdrlen, flags,
-                                        rcr);
+
+    int lir_header_size = get_lir_header_size(rcr, pvs);
+
+    err = self_defined__xx_append_data(sk, fl4, &queue, cork,
+                                       &current->task_frag, getfrag,
+                                       from, length, transhdrlen, flags,
+                                       rcr, lir_header_size);
 
     if (err) {
         __ip_flush_pending_frames(sk, &queue, cork);
@@ -151,7 +136,7 @@ struct sk_buff *self_defined__lir_make_skb(struct sock *sk,
     // header initialization part
     // ---------------------------------------------------------------------------------------
     pvh = lir_hdr(skb); // 创建 header (总共9个字段 + 剩余的补充部分)
-    pvh->version = 5; // 版本 (字段1)
+    pvh->version = LIR_VERSION_NUMBER; // 版本 (字段1)
     pvh->tos = (cork->tos != -1) ? cork->tos : inet->tos; // tos type_of_service (字段2)
     pvh->ttl = ttl; // ttl (字段3)
     pvh->protocol = sk->sk_protocol; // 上层协议 (字段4)
@@ -159,7 +144,7 @@ struct sk_buff *self_defined__lir_make_skb(struct sock *sk,
     pvh->id = 0; // 进行 id 的设置 (字段6) -> 如果不进行分片的话，那么 id 默认设置为 0
     pvh->check = 0; // 校验和字段 (字段7)
     pvh->source = rcr->source; // 设置源 (字段8)
-    pvh->hdr_len = sizeof(struct LiRHeader) + rcr->destination_info->number_of_destinations + pvs->bloom_filter->effective_bytes; // 设置数据包总长度 (字段9)
+    pvh->hdr_len = get_lir_header_size(rcr, pvs); // 设置数据包总长度 (字段9)
     // tot_len 字段 10 (等待后面进行赋值)
     pvh->bf_len = (int)(pvs->bloom_filter->effective_bytes); // bf 有效字节数 (字段11)
     pvh->dest_len = (int)(rcr->destination_info->number_of_destinations); // 目的的长度 (字段12)
@@ -171,6 +156,7 @@ struct sk_buff *self_defined__lir_make_skb(struct sock *sk,
     int memory_of_destinations = rcr->destination_info->number_of_destinations;
     memcpy(dest_pointer_start, rcr->destination_info->destinations, memory_of_destinations);
     // ---------------------------------------------------------------------------------------
+
 
     // copy bloom filter
     // ---------------------------------------------------------------------------------------

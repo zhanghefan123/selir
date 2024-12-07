@@ -3,6 +3,7 @@
 #include "structure/routing/variables.h"
 #include "structure/routing/array_based_routing_table.h"
 #include "structure/routing/hash_based_routing_table.h"
+#include "structure/crypto/crypto_structure.h"
 #include "tools/tools.h"
 
 
@@ -10,12 +11,14 @@
  * 初始化网络命名空间之中的 path_validation_structure
  * @param current_ns
  */
-struct PathValidationStructure *initialize_pvs(void) {
+struct PathValidationStructure *init_pvs(void) {
     struct PathValidationStructure *pvs = (struct PathValidationStructure *) kmalloc(
             sizeof(struct PathValidationStructure), GFP_KERNEL);
     pvs->abrt = NULL;
     pvs->hbrt = NULL;
     pvs->abit = NULL;
+    pvs->hash_api = generate_hash_api();
+    pvs->hmac_api = generate_hmac_api();
     return pvs;
 }
 
@@ -33,6 +36,10 @@ void free_pvs(struct PathValidationStructure *pvs) {
     free_abit(pvs->abit);
     // 进行布隆过滤器的释放
     delete_bloom_filter(pvs->bloom_filter);
+    // 进行哈希数据结构的释放
+    free_crypto_api(pvs->hash_api);
+    // 进行 hmac 数据结构的释放
+    free_crypto_api(pvs->hmac_api);
 }
 
 
