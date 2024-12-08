@@ -2,6 +2,7 @@
 #include "structure/header/lir_header.h"
 #include "hooks/transport_layer/udp/udp_send_skb/udp_send_skb.h"
 #include "hooks/network_layer/ipv4/ip_send_skb/ip_send_skb.h"
+#include "structure/routing/routing_calc_res.h"
 
 /**
  * 进行 udp 层的定义
@@ -10,7 +11,7 @@
  * @param cork corking 状态
  * @return
  */
-int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct inet_cork *cork, struct net_device* output_interface)
+int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct inet_cork *cork, struct RoutingCalcRes* rcr)
 {
     struct sock *sk = skb->sk;
     struct inet_sock *inet = inet_sk(sk);
@@ -89,7 +90,7 @@ int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct in
 
     // 进行数据的发送
     send:
-    err = self_defined_path_validation_send_skb(sock_net(sk), skb, output_interface);
+    err = self_defined_path_validation_send_skb(sock_net(sk), skb, rcr);
     if (err) {
         if (err == -ENOBUFS && !inet->recverr) {
             UDP_INC_STATS(sock_net(sk),

@@ -37,7 +37,7 @@ struct shash_desc* generate_hash_api(void) {
  * @param data 实际的数据
  * @return
  */
-unsigned char* calculate_hash(struct shash_desc* hash_api, char* data, int length){
+unsigned char* calculate_hash(struct shash_desc* hash_api, unsigned char* data, int length){
     // 如果 hash_output 还没有分配内存 -> 那么就进行内存的分配
     unsigned char* hash_output = (unsigned char*) kmalloc(sizeof(unsigned char) * 20, GFP_KERNEL);
     if(crypto_shash_init(hash_api)){
@@ -60,7 +60,7 @@ unsigned char* calculate_hash(struct shash_desc* hash_api, char* data, int lengt
  * @param data 的长度
  * @return
  */
-unsigned char* calculate_hmac(struct shash_desc* hmac_api, char* data, char* key, int length){
+unsigned char* calculate_hmac(struct shash_desc* hmac_api, unsigned char* data, int length, char* key){
     // 判断是否 hmac_api 为 NULl
     if((NULL == hmac_api) || (NULL == hmac_api -> tfm)){
         return NULL;
@@ -112,9 +112,10 @@ struct shash_desc* generate_hmac_api(void){
  * @param crypto_api
  */
 void free_crypto_api(struct shash_desc* crypto_api) {
-    if(crypto_api){
-        if(crypto_api->tfm){
+    if(NULL != crypto_api){
+        if(NULL != crypto_api->tfm){
             LOG_WITH_PREFIX("free tfm");
+            // 注意这里千万不要调用 crypto_free_shash(crypto_api->tfm);
         }
         LOG_WITH_PREFIX("free crypto api");
         kfree(crypto_api);
@@ -127,11 +128,12 @@ void free_crypto_api(struct shash_desc* crypto_api) {
 void test_crypto_apis(void){
     // 测试哈希函数
     struct shash_desc* hash_api = generate_hash_api();
-    unsigned char* hash_output = calculate_hash(hash_api, "123", strlen("123"));
+    unsigned char content[3] = {1, 2, 3};
+    unsigned char* hash_output = calculate_hash(hash_api, content, strlen("123"));
     print_memory_in_hex(hash_output, 20);
     // 测试MAC函数
     struct shash_desc* hmac_api = generate_hmac_api();
-    unsigned char* hmac_output = calculate_hmac(hmac_api, "123", "123", strlen("123"));
+    unsigned char* hmac_output = calculate_hmac(hmac_api, content, strlen("123"), "123");
     print_memory_in_hex(hmac_output, 4);
     // 进行api的释放
     free_crypto_api(hash_api);

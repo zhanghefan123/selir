@@ -19,7 +19,8 @@ pvm-objs := \
 	src/api/netlink_handler.o \
 	src/api/option_resolver.o \
 	src/structure/path_validation_structure.o \
-	src/structure/path_validation_header.o \
+	src/structure/header/lir_header.o \
+	src/structure/header/icing_header.o \
 	src/structure/namespace/namespace.o \
 	src/structure/crypto/crypto_structure.o \
 	src/structure/crypto/bloom_filter.o \

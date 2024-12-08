@@ -166,6 +166,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct Destinatio
             int destination = dest_and_proto_info->destinations[0];
             struct RoutingTableEntry *rte = find_sre_in_hbrt(hbrt,source,destination);
             rcr->rtes[0] = rte;
+            rcr->output_interface = rte->output_interface->interface;
         }
     } else if(OPT_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol){
         if(1 != dest_and_proto_info->number_of_destinations){
@@ -175,6 +176,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct Destinatio
             int destination = dest_and_proto_info->destinations[0];
             struct RoutingTableEntry *rte = find_sre_in_hbrt(hbrt,source,destination);
             rcr->rtes[0] = rte;
+            rcr->output_interface = rte->output_interface->interface;
         }
     } else if(SELIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
         // 首先找到主节点

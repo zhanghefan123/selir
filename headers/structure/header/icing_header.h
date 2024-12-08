@@ -46,12 +46,15 @@ struct Expire {
 };
 
 struct ProofAndHardner {
-    unsigned char data[16]; // 14 bytes proof and 2 bytes hardener
+    unsigned char data[16]; // 12 bytes proof and 4 bytes hardener
 };
 
 
 static inline struct ICINGHeader *icing_hdr(const struct sk_buff *skb) {
     return (struct ICINGHeader *) skb_network_header(skb);
 }
+
+void PRINT_ICING_HEADER(struct ICINGHeader* icing_header);
+
 
 #endif //PATH_VALIDATION_MODULE_ICING_HEADER_H

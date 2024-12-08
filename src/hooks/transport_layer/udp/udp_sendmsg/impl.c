@@ -297,9 +297,8 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
         if (!IS_ERR_OR_NULL(skb))
         {
             // 当 skb_copy 的时候并不会进行 skb->sk 的拷贝
-            err = self_defined_udp_send_skb(skb, fl4, &cork, rcr->output_interface);
+            err = self_defined_udp_send_skb(skb, fl4, &cork, rcr);
         }
-        kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
         goto out;
     }
     // ----------------------------------------------------------------------------

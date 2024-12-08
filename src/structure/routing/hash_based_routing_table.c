@@ -125,14 +125,10 @@ int free_hbrt(struct HashBasedRoutingTable *hbrt) {
         }
         // 清空 head_pointer_list 引入的 memory 开销
         if (NULL != hbrt->bucket_array){
-            // 可能发生错误的位置1
-            printk(KERN_EMERG "error location 1 \n");
             kfree(hbrt->bucket_array);
             hbrt->bucket_array = NULL;
         }
         // 释放 hbrt
-        // 可能发生错误的位置2
-        printk(KERN_EMERG "error location 2 \n");
         kfree(hbrt);
         hbrt = NULL;
         LOG_WITH_PREFIX("delete hash based routing table successfully!");

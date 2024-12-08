@@ -12,6 +12,9 @@
 //extern unsigned char* hash_output; // hash 输出
 //extern unsigned char* hmac_output; // hmac 输出
 
+#define HASH_OUTPUT_LENGTH 20
+#define HMAC_OUTPUT_LENGTH 20
+
 // 生成 hash api
 struct shash_desc* generate_hash_api(void);
 
@@ -25,9 +28,9 @@ void free_crypto_api(struct shash_desc* crypto_api);
 void test_crypto_apis(void);
 
 // 进行哈希计算
-unsigned char* calculate_hash(struct shash_desc* hash_api, char* data, int length);
+unsigned char* calculate_hash(struct shash_desc* hash_api, unsigned char* data, int length);
 
 // 进行 hmac 计算
-unsigned char* calculate_hmac(struct shash_desc* hmac_api, char* data, char* key, int length);
+unsigned char* calculate_hmac(struct shash_desc* hmac_api, unsigned char* data, int length, char* key);
 
 #endif //LOADABLE_KERNEL_MODULE_CRYPTO_FUNCTION_H

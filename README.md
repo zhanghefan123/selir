@@ -22,6 +22,8 @@
 
 4. 当 skb_copy 的时候并不会进行 skb->sk 的拷贝, 还有以后不要尝试从通过 udp_sendmsg 向多个地方进行发包了, 试过很多次了
 
+5. 原先在 free_pvs 之中进行了 free_crypto_api, 现在已经注释掉了，因为如果不注释，多次 insmod rmmod 之后会报错
+
 # directory illustration:
 
 1. src/
