@@ -8,8 +8,6 @@
 #include <net/ip.h>
 #include "structure/routing/routing_calc_res.h"
 
-#define ICING_PROOF_LENGTH 16
-
 struct sk_buff *self_defined_lir_make_skb(struct sock *sk,
                                           struct flowi4 *fl4,
                                           int getfrag(void *from, char *to, int offset,

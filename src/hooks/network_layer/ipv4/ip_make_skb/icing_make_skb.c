@@ -6,6 +6,7 @@
 #include "structure/namespace/namespace.h"
 #include "structure/crypto/crypto_structure.h"
 #include "api/test.h"
+#include "hooks/network_layer/ipv4/ip_send_check/ip_send_check.h"
 
 /**
  *
@@ -90,12 +91,8 @@ static void fill_icing_validation(struct ICINGHeader* icing_header, struct Routi
     int current_node_id = pvs->node_id;
     // 路径长度
     int path_length = rte->path_length;
-    // 路径部分的内存
-    int path_memory = (int)(sizeof(struct NodeIdAndTag)) * path_length;
-    // expire 部分的内存
-    int expire_memory = (int)(sizeof(struct Expire)) * path_length;
     // 起始指针
-    unsigned char* validation_start_pointer = (unsigned char*)(icing_header) + sizeof(struct ICINGHeader) + path_memory + expire_memory;
+    unsigned char* validation_start_pointer = return_icing_proof_start_pointer(icing_header);
     // 进行路径部分内存分配以及填充
     // -------------------------------------------------------------------------------------
     // 1. 先进行静态哈希的计算
@@ -221,7 +218,7 @@ struct sk_buff* self_defined__icing_make_skb(struct sock *sk,
     icing_header->source = rcr->source; // 设置源 (字段8)
     icing_header->dest = rcr->destination_info->destinations[0]; // 设置目的 (字段9)
     icing_header->hdr_len = get_icing_header_size(rcr); // 设置数据包总长度 (字段10)
-    // tot_len 字段 11 (等待后面进行赋值)
+    icing_header->tot_len = htons(skb->len);// tot_len 字段 11 (等待后面进行赋值)
     icing_header->length_of_path = rcr->rtes[0]->path_length; // 设置长度 (字段12)
     icing_header->current_path_index = 0; // 当前的索引 (字段13)
     // ---------------------------------------------------------------------------------------
@@ -231,9 +228,14 @@ struct sk_buff* self_defined__icing_make_skb(struct sock *sk,
     fill_icing_expire(icing_header, rcr->rtes[0]); // 填充 expire 部分
     fill_icing_validation(icing_header, rcr->rtes[0], pvs); // 填充验证字段部分
     // ---------------------------------------------------------------------------------------
+
+    // 等待一切就绪后计算 check
+    icing_send_check(icing_header);
+
     skb->priority = (cork->tos != -1) ? cork->priority : sk->sk_priority;
     skb->mark = cork->mark;
     skb->tstamp = cork->transmit_time;
+    skb->protocol = htons(ETH_P_IP);
     out:
     return skb;
 }

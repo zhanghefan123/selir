@@ -17,9 +17,9 @@ int lir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
     // 2. 进行消息的打印
     PRINT_LIR_HEADER(pvh);
     // 3. 进行初级的校验
-    skb = path_validation_rcv_validate(skb, net);
+    skb = lir_rcv_validate(skb, net);
     // 4. 进行实际的转发
-    process_result = path_validation_forward_packets(skb, pvs, net, orig_dev);
+    process_result = lir_forward_packets(skb, pvs, net, orig_dev);
     // 5. 判断是否需要向上层提交或者释放
     if(NET_RX_SUCCESS == process_result) {
         LOG_WITH_PREFIX("local deliver");
@@ -38,7 +38,7 @@ int lir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
  * @param skb
  * @param pvh
  */
-int path_validation_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
+int lir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
     // 1. 初始化变量
     int index;
     int result = NET_RX_DROP; // 默认的情况是进行数据包的丢弃s
@@ -80,7 +80,7 @@ int path_validation_forward_packets(struct sk_buff* skb, struct PathValidationSt
 
 
 
-struct sk_buff* path_validation_rcv_validate(struct sk_buff* skb, struct net* net){
+struct sk_buff* lir_rcv_validate(struct sk_buff* skb, struct net* net){
     // 获取头部
     const struct LiRHeader *pvh;
     // 丢包的原因

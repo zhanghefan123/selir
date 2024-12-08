@@ -8,6 +8,8 @@
 #include <linux/byteorder/little_endian.h>
 #include <net/ip.h>
 
+#define ICING_PROOF_LENGTH 16
+
 struct ICINGHeader {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
     __u8 useless: 4, version: 4; // 字段1
@@ -52,6 +54,14 @@ struct ProofAndHardner {
 
 static inline struct ICINGHeader *icing_hdr(const struct sk_buff *skb) {
     return (struct ICINGHeader *) skb_network_header(skb);
+}
+
+static inline unsigned char* return_icing_path_start_pointer(struct ICINGHeader* icing_header){
+    return (unsigned char*)(icing_header) + sizeof(struct ICINGHeader);
+}
+
+static inline unsigned char* return_icing_proof_start_pointer(struct ICINGHeader* icing_header){
+    return (unsigned char*)(icing_header) + sizeof(struct ICINGHeader) + icing_header->length_of_path * sizeof(struct NodeIdAndTag) + icing_header->length_of_path * sizeof(struct Expire);
 }
 
 void PRINT_ICING_HEADER(struct ICINGHeader* icing_header);

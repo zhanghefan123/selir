@@ -9,8 +9,7 @@
 #include "structure/routing/routing_calc_res.h"
 #include "structure/header/lir_header.h"
 #include "structure/namespace/namespace.h"
-
-
+#include "hooks/network_layer/ipv4/ip_send_check/ip_send_check.h"
 
 
 static inline int ip_select_ttl(struct inet_sock *inet, struct dst_entry *dst) {
@@ -99,7 +98,7 @@ struct sk_buff *self_defined__lir_make_skb(struct sock *sk,
     struct sk_buff **tail_skb;
     struct inet_sock *inet = inet_sk(sk);
     struct net *net = sock_net(sk);
-    struct LiRHeader *pvh;
+    struct LiRHeader *lir_header;
     struct PathValidationStructure* pvs = get_pvs_from_ns(net);
     unsigned char* bloom_pointer_start = NULL;
     unsigned char* dest_pointer_start = NULL;
@@ -135,24 +134,24 @@ struct sk_buff *self_defined__lir_make_skb(struct sock *sk,
 
     // header initialization part
     // ---------------------------------------------------------------------------------------
-    pvh = lir_hdr(skb); // 创建 header (总共9个字段 + 剩余的补充部分)
-    pvh->version = LIR_VERSION_NUMBER; // 版本 (字段1)
-    pvh->tos = (cork->tos != -1) ? cork->tos : inet->tos; // tos type_of_service (字段2)
-    pvh->ttl = ttl; // ttl (字段3)
-    pvh->protocol = sk->sk_protocol; // 上层协议 (字段4)
-    pvh->frag_off = htons(IP_DF);; // 是否进行分片 (字段5) -> 这里默认设置的是不进行分片操作
-    pvh->id = 0; // 进行 id 的设置 (字段6) -> 如果不进行分片的话，那么 id 默认设置为 0
-    pvh->check = 0; // 校验和字段 (字段7)
-    pvh->source = rcr->source; // 设置源 (字段8)
-    pvh->hdr_len = get_lir_header_size(rcr, pvs); // 设置数据包总长度 (字段9)
-    // tot_len 字段 10 (等待后面进行赋值)
-    pvh->bf_len = (int)(pvs->bloom_filter->effective_bytes); // bf 有效字节数 (字段11)
-    pvh->dest_len = (int)(rcr->destination_info->number_of_destinations); // 目的的长度 (字段12)
+    lir_header = lir_hdr(skb); // 创建 header (总共9个字段 + 剩余的补充部分)
+    lir_header->version = LIR_VERSION_NUMBER; // 版本 (字段1)
+    lir_header->tos = (cork->tos != -1) ? cork->tos : inet->tos; // tos type_of_service (字段2)
+    lir_header->ttl = ttl; // ttl (字段3)
+    lir_header->protocol = sk->sk_protocol; // 上层协议 (字段4)
+    lir_header->frag_off = htons(IP_DF);; // 是否进行分片 (字段5) -> 这里默认设置的是不进行分片操作
+    lir_header->id = 0; // 进行 id 的设置 (字段6) -> 如果不进行分片的话，那么 id 默认设置为 0
+    lir_header->check = 0; // 校验和字段 (字段7)
+    lir_header->source = rcr->source; // 设置源 (字段8)
+    lir_header->hdr_len = get_lir_header_size(rcr, pvs); // 设置数据包总长度 (字段9)
+    lir_header->tot_len = htons(skb->len); // tot_len 字段 10 (等待后面进行赋值)
+    lir_header->bf_len = (int)(pvs->bloom_filter->effective_bytes); // bf 有效字节数 (字段11)
+    lir_header->dest_len = (int)(rcr->destination_info->number_of_destinations); // 目的的长度 (字段12)
     // ---------------------------------------------------------------------------------------
 
     // copy destinations
     // ---------------------------------------------------------------------------------------
-    dest_pointer_start = (unsigned char*)pvh + sizeof(struct LiRHeader);
+    dest_pointer_start = (unsigned char*)lir_header + sizeof(struct LiRHeader);
     int memory_of_destinations = rcr->destination_info->number_of_destinations;
     memcpy(dest_pointer_start, rcr->destination_info->destinations, memory_of_destinations);
     // ---------------------------------------------------------------------------------------
@@ -160,14 +159,18 @@ struct sk_buff *self_defined__lir_make_skb(struct sock *sk,
 
     // copy bloom filter
     // ---------------------------------------------------------------------------------------
-    bloom_pointer_start = (unsigned char*)pvh + sizeof(struct LiRHeader) + memory_of_destinations;
+    bloom_pointer_start = (unsigned char*)lir_header + sizeof(struct LiRHeader) + memory_of_destinations;
     memcpy(bloom_pointer_start, rcr->bitset, pvs->bloom_filter->effective_bytes);
     print_memory_in_hex(bloom_pointer_start, pvs->bloom_filter->effective_bytes);
     // ---------------------------------------------------------------------------------------
 
+    // 等待一切就绪之后计算 lir_send_check
+    lir_send_check(lir_header);
+
     skb->priority = (cork->tos != -1) ? cork->priority : sk->sk_priority;
     skb->mark = cork->mark;
     skb->tstamp = cork->transmit_time;
+    skb->protocol = htons(ETH_P_IP);
     /*
      * Steal rt from cork.dst to avoid a pair of atomic_inc/atomic_dec
      * on dst refcount

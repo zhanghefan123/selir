@@ -24,6 +24,8 @@
 
 5. 原先在 free_pvs 之中进行了 free_crypto_api, 现在已经注释掉了，因为如果不注释，多次 insmod rmmod 之后会报错
 
+6. 在计算哈希之前需要将校验和置为0
+
 # directory illustration:
 
 1. src/

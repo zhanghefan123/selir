@@ -143,3 +143,37 @@ void memory_or(unsigned char* source, unsigned char* target, int length){
         source[index] = source[index] | target[index];
     }
 }
+
+
+/**
+ *
+ * @param source
+ * @param target
+ * @param length
+ */
+void memory_xor(unsigned char* target, const unsigned char* source, int length){
+    int index;
+    for(index = 0; index < length; index++){
+        target[index] = target[index] ^ source[index];
+    }
+}
+
+
+/**
+ *
+ * @param first
+ * @param second
+ * @param length
+ * @return
+ */
+bool memory_compare(const unsigned char* first, const unsigned char* second, int length){
+    int index;
+    bool same = true;
+    for(index = 0; index < length; index++){
+        if(first[index] != second[index]){
+            same = false;
+            break;
+        }
+    }
+    return same;
+}
