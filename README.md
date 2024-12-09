@@ -1,3 +1,8 @@
+# prepare works
+
+1. 需要在 struct net 结构体之中添加 path_validation_structure 这个 void 指针
+2. 需要在 struct sock 结构体之中添加 bool first_packet 这个变量。
+
 # attentions:
 
 1. makefile 之中的 ccflags-y 这个必须要是 headers 的绝对路径才能行

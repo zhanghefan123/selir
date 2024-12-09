@@ -9,7 +9,7 @@ void PRINT_LIR_HEADER(struct LiRHeader* pvh){
     unsigned char* dest_pointer_start = (unsigned char*)(pvh) + sizeof(struct LiRHeader);
     unsigned char* bloom_pointer_start = (unsigned char*)(pvh) + sizeof(struct LiRHeader) + pvh->dest_len;
     unsigned char* application_pointer_start = (unsigned char*)(pvh) + sizeof(struct LiRHeader) + sizeof(struct udphdr);
-    LOG_WITH_EDGE("path validation header");
+    LOG_WITH_EDGE("icing header");
     // 1. 进行各个字段的打印
     printk(KERN_EMERG "version: %d\n", pvh->version);
     printk(KERN_EMERG "ttl: %d\n", pvh->ttl);
@@ -29,6 +29,6 @@ void PRINT_LIR_HEADER(struct LiRHeader* pvh){
     }
     // 3. 进行布隆过滤器的打印
     print_memory_in_hex(bloom_pointer_start, pvh->bf_len);
-    LOG_WITH_EDGE("path validation header");
+    LOG_WITH_EDGE("icing header");
     // 4. 进行应用层的打印
 }

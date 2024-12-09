@@ -31,7 +31,7 @@ void free_abrt(struct ArrayBasedRoutingTable *abrt) {
         if (NULL != abrt->routes) {
             // 遍历所有的路由进行释放
             for (index = 0; index < abrt->number_of_routes; index++) {
-                free_routing_table_entry(abrt->routes[index]);
+                free_rte(abrt->routes[index]);
             }
             kfree(abrt->routes);
             abrt->routes = NULL;

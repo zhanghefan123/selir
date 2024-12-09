@@ -18,13 +18,13 @@ void PRINT_ICING_HEADER(struct ICINGHeader *icing_header) {
     printk(KERN_EMERG "current_path_index: %d\n", icing_header->current_path_index);
     // 2. 进行path的打印
     unsigned char *path_start_pointer = (unsigned char *) (icing_header) + sizeof(struct ICINGHeader);
-    struct NodeIdAndTag *path = (struct NodeIdAndTag *) (path_start_pointer);
+    struct ICINGHop *path = (struct ICINGHop *) (path_start_pointer);
     int index;
     for (index = 0; index < icing_header->length_of_path; index++) {
         printk(KERN_EMERG "node_id: %d, link_identifier: %d\n", path[index].node_id, path[index].link_id);
     }
     // 3. 进行 expire 的打印
-    int path_memory = icing_header->length_of_path * sizeof(struct NodeIdAndTag);
+    int path_memory = icing_header->length_of_path * sizeof(struct ICINGHop);
     int expire_memory = icing_header->length_of_path * sizeof(struct Expire);
     unsigned char *expire_start_pointer = (unsigned char *) (icing_header) + sizeof(struct ICINGHeader) + path_memory;
     print_memory_in_hex(expire_start_pointer, expire_memory);

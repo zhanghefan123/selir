@@ -30,6 +30,9 @@ void test_crypto_apis(void);
 // 进行哈希计算
 unsigned char* calculate_hash(struct shash_desc* hash_api, unsigned char* data, int length);
 
+// 计算多个段的哈希
+unsigned char* calculate_hash_from_multiple_segments(struct shash_desc* hash_api, unsigned char** data, int* lengths, int segments);
+
 // 进行 hmac 计算
 unsigned char* calculate_hmac(struct shash_desc* hmac_api, unsigned char* data, int length, char* key);
 

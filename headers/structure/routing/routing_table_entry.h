@@ -23,6 +23,6 @@ struct RoutingTableEntry {
 struct RoutingTableEntry *init_routing_table_entry(int effective_bytes);
 
 // 3. 释放源路由表项
-void free_routing_table_entry(struct RoutingTableEntry *source_routing_table_entry);
+void free_rte(struct RoutingTableEntry *source_routing_table_entry);
 
 #endif //LOADABLE_KERNEL_MODULE_ROUTING_TABLE_ENTRY_H

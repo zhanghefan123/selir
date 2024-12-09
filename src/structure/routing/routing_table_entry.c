@@ -20,20 +20,20 @@ struct RoutingTableEntry *init_routing_table_entry(int effective_bytes) {
  * 进行路由表项的释放
  * @param source_routing_table_entry 要释放的路由表项
  */
-void free_routing_table_entry(struct RoutingTableEntry *routing_table_entry) {
-    if (NULL != routing_table_entry) {
-        if (NULL != routing_table_entry->node_ids) {
-            kfree(routing_table_entry->node_ids);
-            routing_table_entry->node_ids = NULL;
+void free_rte(struct RoutingTableEntry *source_routing_table_entry) {
+    if (NULL != source_routing_table_entry) {
+        if (NULL != source_routing_table_entry->node_ids) {
+            kfree(source_routing_table_entry->node_ids);
+            source_routing_table_entry->node_ids = NULL;
         }
-        if (NULL != routing_table_entry->bitset) {
-            kfree(routing_table_entry->bitset);
-            routing_table_entry->bitset = NULL;
+        if (NULL != source_routing_table_entry->bitset) {
+            kfree(source_routing_table_entry->bitset);
+            source_routing_table_entry->bitset = NULL;
         }
-        if (NULL != routing_table_entry->link_identifiers) {
-            kfree(routing_table_entry->link_identifiers);
-            routing_table_entry->link_identifiers = NULL;
+        if (NULL != source_routing_table_entry->link_identifiers) {
+            kfree(source_routing_table_entry->link_identifiers);
+            source_routing_table_entry->link_identifiers = NULL;
         }
-        routing_table_entry = NULL;
+        source_routing_table_entry = NULL;
     }
 }

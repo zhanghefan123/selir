@@ -18,6 +18,8 @@ pvm-objs := \
 	src/api/netlink_router.o \
 	src/api/netlink_handler.o \
 	src/api/option_resolver.o \
+	src/structure/path_validation_sock_structure.o \
+	src/structure/session/session_table.o \
 	src/structure/path_validation_structure.o \
 	src/structure/header/lir_header.o \
 	src/structure/header/icing_header.o \

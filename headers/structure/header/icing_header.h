@@ -35,7 +35,7 @@ struct ICINGHeader {
     unsigned char data[0];  // 额外的部分 (这里是指的 bf 的 bitarray)
 };
 
-struct NodeIdAndTag {
+struct ICINGHop {
     __u32 useless1; // 无用部分
     __u32 useless2; // 无用部分
     __u32 useless3; // 无用部分
@@ -48,7 +48,7 @@ struct Expire {
     unsigned char data[2]; // 2 bytes expire
 };
 
-struct ProofAndHardner {
+struct ICINGProof {
     unsigned char data[16]; // 12 bytes proof and 4 bytes hardener
 };
 
@@ -62,7 +62,7 @@ static inline unsigned char* get_icing_path_start_pointer(struct ICINGHeader* ic
 }
 
 static inline unsigned char* get_icing_proof_start_pointer(struct ICINGHeader* icing_header){
-    return (unsigned char*)(icing_header) + sizeof(struct ICINGHeader) + icing_header->length_of_path * sizeof(struct NodeIdAndTag) + icing_header->length_of_path * sizeof(struct Expire);
+    return (unsigned char*)(icing_header) + sizeof(struct ICINGHeader) + icing_header->length_of_path * sizeof(struct ICINGHop) + icing_header->length_of_path * sizeof(struct Expire);
 }
 
 unsigned char* calculate_icing_hash(struct shash_desc* hash_api, struct ICINGHeader* icing_header);

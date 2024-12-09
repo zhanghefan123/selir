@@ -3,10 +3,11 @@
 #include "hooks/network_layer/ipv4/ip_setup_cork/ip_setup_cork.h"
 #include "hooks/network_layer/ipv4/ip_append_data/ip_append_data.h"
 #include "hooks/network_layer/ipv4/ip_flush_pending_frames/ip_flush_pending_frames.h"
+#include "hooks/network_layer/ipv4/ip_send_check/ip_send_check.h"
 #include "structure/namespace/namespace.h"
 #include "structure/crypto/crypto_structure.h"
 #include "api/test.h"
-#include "hooks/network_layer/ipv4/ip_send_check/ip_send_check.h"
+
 
 /**
  *
@@ -23,9 +24,9 @@ static int get_icing_header_size(struct RoutingCalcRes *rcr) {
     struct RoutingTableEntry *rte = rcr->rtes[0];
     // 2. 进行返回
     return (int) (sizeof(struct ICINGHeader))
-           + (int) (rte->path_length * sizeof(struct NodeIdAndTag))
+           + (int) (rte->path_length * sizeof(struct ICINGHop))
            + (int) (rte->path_length * sizeof(struct Expire))
-           + (int) (rte->path_length * sizeof(struct ProofAndHardner));
+           + (int) (rte->path_length * sizeof(struct ICINGProof));
 }
 
 /**
@@ -49,7 +50,7 @@ static void fill_icing_path(struct ICINGHeader* icing_header, struct RoutingTabl
     unsigned char* path_start_pointer = (unsigned char*)(icing_header) + sizeof(struct ICINGHeader);
     // 进行路径部分内存分配以及填充
     // -------------------------------------------------------------------------------------
-    struct NodeIdAndTag* path = (struct NodeIdAndTag*)path_start_pointer;
+    struct ICINGHop* path = (struct ICINGHop*)path_start_pointer;
     for(index = 0; index < path_length; index++){
         // 当还没到达最后的节点的时候
         if (index != (path_length - 1)){
@@ -72,7 +73,7 @@ static void fill_icing_expire(struct ICINGHeader* icing_header, struct RoutingTa
     // 路径长度
     int path_length = rte->path_length;
     // 路径部分的内存
-    int path_memory = (int)(sizeof(struct NodeIdAndTag)) * path_length;
+    int path_memory = (int)(sizeof(struct ICINGHop)) * path_length;
     // expire 部分的内存
     int expire_memory = (int)(sizeof(struct Expire)) * path_length;
     // 起始指针
@@ -98,7 +99,7 @@ static void fill_icing_validation(struct ICINGHeader* icing_header, struct Routi
     // 1. 先进行静态哈希的计算
     unsigned char* hash_result = calculate_icing_hash(pvs->hash_api, icing_header);
     unsigned char* hmac_result = NULL;
-    struct ProofAndHardner* proof_list = (struct ProofAndHardner*)(validation_start_pointer);
+    struct ICINGProof* proof_list = (struct ICINGProof*)(validation_start_pointer);
     for(index = 0; index < path_length; index++){
         // 拿到中间节点的 id
         int on_path_node_id = rte->node_ids[index];

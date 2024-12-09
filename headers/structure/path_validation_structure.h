@@ -9,6 +9,7 @@
 #include "structure/interface/interface_table.h"
 #include "structure/routing/array_based_routing_table.h"
 #include "structure/routing/hash_based_routing_table.h"
+#include "structure/session/session_table.h"
 
 struct PathValidationStructure {
     // 当前节点的 id
@@ -21,6 +22,8 @@ struct PathValidationStructure {
     struct HashBasedRoutingTable *hbrt;
     // 基于数组的接口表
     struct ArrayBasedInterfaceTable *abit;
+    // 基于哈希的会话表
+    struct HashBasedSessionTable* hbst;
     // 布隆过滤器
     struct BloomFilter *bloom_filter;
     // 哈希结构体

@@ -24,6 +24,8 @@ add_executable(lkm
         src/api/netlink_handler.c
         src/api/option_resolver.c
 
+        src/structure/path_validation_sock_structure.c
+        src/structure/session/session_table.c
         src/structure/crypto/crypto_structure.c
         src/structure/crypto/bloom_filter.c
         src/structure/path_validation_structure.c
@@ -36,7 +38,9 @@ add_executable(lkm
         src/structure/routing/routing_table_entry.c
         src/structure/header/lir_header.c
         src/structure/header/icing_header.c
+        src/structure/header/opt_header.c
         src/structure/header/tools.c
+
 
         src/hooks/inet_sendmsg/impl.c
         src/hooks/inet_sendmsg/hook.c

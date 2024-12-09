@@ -162,8 +162,8 @@ static bool proof_verification(struct ICINGHeader* icing_header, struct PathVali
     int source = icing_header->source;
     struct shash_desc* hash_api = pvs->hash_api;
     struct shash_desc* hmac_api = pvs->hmac_api;
-    struct NodeIdAndTag* path = (struct NodeIdAndTag*)(get_icing_path_start_pointer(icing_header));
-    struct ProofAndHardner* proof_list = (struct ProofAndHardner*)(get_icing_proof_start_pointer(icing_header));
+    struct ICINGHop* path = (struct ICINGHop*)(get_icing_path_start_pointer(icing_header));
+    struct ICINGProof* proof_list = (struct ICINGProof*)(get_icing_proof_start_pointer(icing_header));
     // 2.计算哈希
     unsigned char* static_fields_hash = calculate_icing_hash(hash_api, icing_header);
     // 3.进行校验
@@ -213,8 +213,8 @@ static void proof_update(struct ICINGHeader* icing_header, struct PathValidation
     // 路径长度
     int path_length = icing_header->length_of_path;
     // 路径和验证字段列表
-    struct NodeIdAndTag* path = (struct NodeIdAndTag*)(get_icing_path_start_pointer(icing_header));
-    struct ProofAndHardner* proof_list = (struct ProofAndHardner*)(get_icing_proof_start_pointer(icing_header));
+    struct ICINGHop* path = (struct ICINGHop*)(get_icing_path_start_pointer(icing_header));
+    struct ICINGProof* proof_list = (struct ICINGProof*)(get_icing_proof_start_pointer(icing_header));
     // 获取静态字段的哈希
     unsigned char* static_fields_hash = calculate_icing_hash(hash_api, icing_header);
     // 对称密钥
@@ -241,7 +241,7 @@ int icing_forward_packets(struct sk_buff* skb, struct PathValidationStructure* p
     int current_node_id = pvs->node_id;
     struct ICINGHeader* icing_header = icing_hdr(skb);
     int destination = icing_header->dest;
-    struct NodeIdAndTag* path = (struct NodeIdAndTag*)get_icing_path_start_pointer(icing_header);
+    struct ICINGHop* path = (struct ICINGHop*)get_icing_path_start_pointer(icing_header);
     int current_path_index = icing_header->current_path_index;
     int current_link_identifier = path[current_path_index].link_id;
     // 进行上游节点是否正确转发的校验

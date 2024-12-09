@@ -80,15 +80,16 @@ int add_entry_to_hbrt(struct HashBasedRoutingTable *hbrt, struct RoutingTableEnt
                                      routing_table_entry->destination_id);
     if (NULL == hash_bucket) {
         LOG_WITH_PREFIX("cannot find hash bucket");
-        kfree(routing_table_entry);
+        free_rte(routing_table_entry);
         return -1;  // 找不到 hash_bucket
     }
+    // 检查是否出现了相同的会话表项
     hlist_for_each_entry_safe(current_entry, next, hash_bucket, pointer) {
         if (0 == routing_entry_equal_judgement(current_entry,
                                                routing_table_entry->source_id,
                                                routing_table_entry->destination_id)) {
             LOG_WITH_PREFIX("already exists route entry");
-            free_routing_table_entry(routing_table_entry);
+            free_rte(routing_table_entry);
             return -2;  // 已经存在
         }
     }
@@ -120,7 +121,7 @@ int free_hbrt(struct HashBasedRoutingTable *hbrt) {
             }
             hlist_for_each_entry_safe(current_entry, next, hash_bucket, pointer) {
                 hlist_del(&current_entry->pointer);
-                free_routing_table_entry(current_entry);
+                free_rte(current_entry);
             }
         }
         // 清空 head_pointer_list 引入的 memory 开销

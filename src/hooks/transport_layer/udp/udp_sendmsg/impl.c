@@ -6,6 +6,7 @@
 #include "tools/tools.h"
 #include "structure/routing/variables.h"
 #include "structure/namespace/namespace.h"
+#include "structure/path_validation_sock_structure.h"
 #include "hooks/transport_layer/udp/udp_sendmsg/udp_sendmsg.h"
 #include "hooks/transport_layer/udp/udp_send_skb/udp_send_skb.h"
 #include "hooks/network_layer/ipv4/ip_make_skb/ip_make_skb.h"
@@ -292,6 +293,8 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
             return -EINVAL;
         }
         // ------------------------------------------------------------------------------
+        // 添加 udp 首部进行发送
+        // ------------------------------------------------------------------------------
         err = PTR_ERR(skb);
         if (!IS_ERR_OR_NULL(skb)) {
             // 当 skb_copy 的时候并不会进行 skb->sk 的拷贝
@@ -299,6 +302,8 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
                                             &cork,rcr,
                                             dest_and_proto_info->path_validation_protocol);
         }
+        // ------------------------------------------------------------------------------
+
         goto out;
     }
     // ----------------------------------------------------------------------------

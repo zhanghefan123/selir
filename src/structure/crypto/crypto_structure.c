@@ -41,14 +41,45 @@ unsigned char* calculate_hash(struct shash_desc* hash_api, unsigned char* data, 
     // 如果 hash_output 还没有分配内存 -> 那么就进行内存的分配
     unsigned char* hash_output = (unsigned char*) kmalloc(sizeof(unsigned char) * 20, GFP_KERNEL);
     if(crypto_shash_init(hash_api)){
-        NULL;
+        return NULL;
     }
     if(crypto_shash_update(hash_api, data, length)){
-        NULL;
+        return NULL;
     }
     if(crypto_shash_final(hash_api, hash_output)){
+        return NULL;
+    }
+    return hash_output;
+}
+
+
+/**
+ * 进行多个段的哈希的计算
+ * @param hash_api 哈希 api
+ * @param data 数据
+ * @param lengths 长度
+ * @param segments 段落数量
+ * @return
+ */
+unsigned char* calculate_hash_from_multiple_segments(struct shash_desc* hash_api, unsigned char** data, int* lengths, int segments){
+    // 如果 hash_output 还没有分配内存 -> 那么就进行内存的分配
+    unsigned char* hash_output = (unsigned char*) kmalloc(sizeof(unsigned char) * 20, GFP_KERNEL);
+    // 初始化
+    if(crypto_shash_init(hash_api)){
         NULL;
     }
+    // 进行更新
+    int index;
+    for(index = 0; index < segments; index++){
+        if(crypto_shash_update(hash_api, data[index], lengths[index])) {
+            return NULL;
+        }
+    }
+    // 进行结果的输出
+    if(crypto_shash_final(hash_api, hash_output)){
+        return NULL;
+    }
+    // 返回结果
     return hash_output;
 }
 
