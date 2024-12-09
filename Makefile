@@ -30,6 +30,7 @@ pvm-objs := \
 	src/structure/routing/hash_based_routing_table.o \
 	src/structure/routing/routing_calc_res.o \
 	src/structure/routing/routing_table_entry.o \
+	src/structure/header/tools.o \
 	src/hooks/inet_sendmsg/impl.o \
 	src/hooks/inet_sendmsg/hook.o \
 	src/hooks/network_layer/ipv4/ip_flush_pending_frames/impl.o\
@@ -70,8 +71,8 @@ pvm-objs := \
 OUTPUT_DIR = "./build"
 
 # 这个必须要是 headers 的绝对路径才能行
-ccflags-y += -I/home/zhf/Projects/srv6/linux/path_validation_module/headers
-#ccflags-y += -I/home/zhf/Projects/linux/pvm/headers
+#ccflags-y += -I/home/zhf/Projects/srv6/linux/path_validation_module/headers
+ccflags-y += -I/home/zhf/Projects/linux/selir/headers
 
 
 all: compile

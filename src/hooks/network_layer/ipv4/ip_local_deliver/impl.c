@@ -7,13 +7,20 @@
 
 extern asmlinkage int (*orig_tcp_v4_rcv)(struct sk_buff* skb);
 
-int pv_local_deliver(struct sk_buff* skb, __be32 receive_interface_addr){
+/**
+ * 进行本地的交付
+ * @param skb 数据包
+ * @param protocol 传输层协议
+ * @param receive_interface_addr 接受的 ip 地址
+ * @return
+ */
+int pv_local_deliver(struct sk_buff* skb, int protocol, __be32 receive_interface_addr){
     struct net* net = dev_net(skb->dev);
     skb_clear_delivery_time(skb);
     __skb_pull(skb, skb_network_header_len(skb));
     rcu_read_lock();
     // ---------------------------------------------------------------
-    pv_protocol_deliver_rcu(net, skb, lir_hdr(skb)->protocol, receive_interface_addr);
+    pv_protocol_deliver_rcu(net, skb, protocol, receive_interface_addr);
     // ---------------------------------------------------------------
     rcu_read_unlock();
     return 0;

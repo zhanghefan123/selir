@@ -11,15 +11,5 @@ int pv_local_out(struct net* net, struct sock* sk, struct sk_buff* skb, struct R
 }
 
 int __pv_local_out(struct net* net, struct sock* sk, struct sk_buff* skb, struct RoutingCalcRes* rcr){
-    if (LIR_VERSION_NUMBER == rcr->destination_info->path_validation_protocol){
-        return pv_output(net, sk, skb, rcr->output_interface);
-    } else if(ICING_VERSION_NUMBER == rcr->destination_info->path_validation_protocol){
-        struct ICINGHeader* icing_header = icing_hdr(skb);
-        icing_header->tot_len = htons(skb->len);
-        icing_send_check(icing_header);
-        skb->protocol = htons(ETH_P_IP);
-        return pv_output(net, sk, skb, rcr->output_interface);
-    } else {
-        return 0;
-    }
+    return pv_output(net, sk, skb, rcr->output_interface);
 }

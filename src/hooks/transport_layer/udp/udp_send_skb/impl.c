@@ -1,5 +1,7 @@
 #include <linux/udp.h>
+#include "api/test.h"
 #include "structure/header/lir_header.h"
+#include "structure/header/icing_header.h"
 #include "hooks/transport_layer/udp/udp_send_skb/udp_send_skb.h"
 #include "hooks/network_layer/ipv4/ip_send_skb/ip_send_skb.h"
 #include "structure/routing/routing_calc_res.h"
@@ -11,8 +13,11 @@
  * @param cork corking 状态
  * @return
  */
-int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct inet_cork *cork, struct RoutingCalcRes* rcr)
-{
+int self_defined_udp_send_skb(struct sk_buff *skb,
+                              struct flowi4 *fl4,
+                              struct inet_cork *cork,
+                              struct RoutingCalcRes *rcr,
+                              int validation_protocol) {
     struct sock *sk = skb->sk;
     struct inet_sock *inet = inet_sk(sk);
     struct udphdr *uh;
@@ -26,7 +31,16 @@ int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct in
     /*
      * Create a UDP header
      */
-    struct LiRHeader* pvh = lir_hdr(skb);
+    int source_identification;
+    if (LIR_VERSION_NUMBER == validation_protocol){
+        struct LiRHeader *lir_header = lir_hdr(skb);
+        source_identification = lir_header->source;
+    } else if(ICING_VERSION_NUMBER == validation_protocol){
+        struct ICINGHeader* icing_header = icing_hdr(skb);
+        source_identification = icing_header->source;
+    } else {
+        LOG_WITH_PREFIX("current not supported protocol");
+    }
 
     uh = udp_hdr(skb);
     uh->source = inet->inet_sport;
@@ -65,7 +79,7 @@ int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct in
         goto csum_partial;
     }
 
-    if (sk->sk_no_check_tx) {			 /* UDP csum off */
+    if (sk->sk_no_check_tx) {             /* UDP csum off */
 
         skb->ip_summed = CHECKSUM_NONE;
         goto send;
@@ -73,7 +87,7 @@ int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct in
     } else if (skb->ip_summed == CHECKSUM_PARTIAL) { /* UDP hardware csum */
         csum_partial:
 
-        udp4_hwcsum(skb, pvh->source, pvh->source);
+        udp4_hwcsum(skb, source_identification, source_identification);
         goto send;
 
     } else
@@ -82,7 +96,7 @@ int self_defined_udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4, struct in
 
     /* add protocol-dependent pseudo-header */
     // 添加上伪首部, 并进行校验和的计算
-    uh->check = csum_tcpudp_magic(pvh->source, pvh->source, len,sk->sk_protocol, csum);
+    uh->check = csum_tcpudp_magic(source_identification, source_identification, len, sk->sk_protocol, csum);
     if (uh->check == 0)
         uh->check = CSUM_MANGLED_0;
 

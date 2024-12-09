@@ -7,6 +7,7 @@
 
 #include <linux/byteorder/little_endian.h>
 #include <net/ip.h>
+#include "structure/crypto/crypto_structure.h"
 
 #define ICING_PROOF_LENGTH 16
 
@@ -24,12 +25,12 @@ struct ICINGHeader {
     __u8 protocol;          // 上层协议 字段4
     __be16 frag_off;        // 分片相关 字段5
     __u16 id;               // 分片相关 字段6
-    __sum16 check;          // 校验和 字段7
     __u16 source;           // 源节点编号 字段8
     __u16 dest;             // 目的节点编号 字段9
     __u16 hdr_len;            // 头部总长度 字段10
     __u16 tot_len;            // 总的长度 字段11
     __u16 length_of_path;     // 路径长度 字段12
+    __sum16 check;          // 校验和 字段7
     __u16 current_path_index; // 当前索引 字段13
     unsigned char data[0];  // 额外的部分 (这里是指的 bf 的 bitarray)
 };
@@ -56,13 +57,15 @@ static inline struct ICINGHeader *icing_hdr(const struct sk_buff *skb) {
     return (struct ICINGHeader *) skb_network_header(skb);
 }
 
-static inline unsigned char* return_icing_path_start_pointer(struct ICINGHeader* icing_header){
+static inline unsigned char* get_icing_path_start_pointer(struct ICINGHeader* icing_header){
     return (unsigned char*)(icing_header) + sizeof(struct ICINGHeader);
 }
 
-static inline unsigned char* return_icing_proof_start_pointer(struct ICINGHeader* icing_header){
+static inline unsigned char* get_icing_proof_start_pointer(struct ICINGHeader* icing_header){
     return (unsigned char*)(icing_header) + sizeof(struct ICINGHeader) + icing_header->length_of_path * sizeof(struct NodeIdAndTag) + icing_header->length_of_path * sizeof(struct Expire);
 }
+
+unsigned char* calculate_icing_hash(struct shash_desc* hash_api, struct ICINGHeader* icing_header);
 
 void PRINT_ICING_HEADER(struct ICINGHeader* icing_header);
 

@@ -36,6 +36,7 @@ add_executable(lkm
         src/structure/routing/routing_table_entry.c
         src/structure/header/lir_header.c
         src/structure/header/icing_header.c
+        src/structure/header/tools.c
 
         src/hooks/inet_sendmsg/impl.c
         src/hooks/inet_sendmsg/hook.c

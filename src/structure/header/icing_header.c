@@ -1,7 +1,7 @@
 #include "tools/tools.h"
 #include "structure/header/icing_header.h"
 
-void PRINT_ICING_HEADER(struct ICINGHeader* icing_header){
+void PRINT_ICING_HEADER(struct ICINGHeader *icing_header) {
     LOG_WITH_EDGE("path validation header");
     // 1. 进行各个字段的打印
     printk(KERN_EMERG "version: %d\n", icing_header->version);
@@ -17,19 +17,28 @@ void PRINT_ICING_HEADER(struct ICINGHeader* icing_header){
     printk(KERN_EMERG "length_of_path: %d\n", icing_header->length_of_path);
     printk(KERN_EMERG "current_path_index: %d\n", icing_header->current_path_index);
     // 2. 进行path的打印
-    unsigned char* path_start_pointer = (unsigned char*)(icing_header) + sizeof(struct ICINGHeader);
-    struct NodeIdAndTag* path = (struct NodeIdAndTag*)(path_start_pointer);
+    unsigned char *path_start_pointer = (unsigned char *) (icing_header) + sizeof(struct ICINGHeader);
+    struct NodeIdAndTag *path = (struct NodeIdAndTag *) (path_start_pointer);
     int index;
-    for(index = 0; index < icing_header->length_of_path; index++){
+    for (index = 0; index < icing_header->length_of_path; index++) {
         printk(KERN_EMERG "node_id: %d, link_identifier: %d\n", path[index].node_id, path[index].link_id);
     }
     // 3. 进行 expire 的打印
     int path_memory = icing_header->length_of_path * sizeof(struct NodeIdAndTag);
     int expire_memory = icing_header->length_of_path * sizeof(struct Expire);
-    unsigned char* expire_start_pointer = (unsigned char*)(icing_header) + sizeof(struct ICINGHeader) + path_memory;
+    unsigned char *expire_start_pointer = (unsigned char *) (icing_header) + sizeof(struct ICINGHeader) + path_memory;
     print_memory_in_hex(expire_start_pointer, expire_memory);
     // 3. 进行 verifier 的打印
 
     LOG_WITH_EDGE("path validation header");
+}
+
+
+unsigned char *calculate_icing_hash(struct shash_desc *hash_api, struct ICINGHeader *icing_header) {
+    // check 和 current_path_index 不作为静态字段来进行哈希
+    int not_calculated_part = sizeof(__sum16) + sizeof(__u16);
+    return calculate_hash(hash_api,
+                          (unsigned char *) (icing_header),
+                          sizeof(struct ICINGHeader) - not_calculated_part);
 
 }

@@ -92,11 +92,11 @@ static void fill_icing_validation(struct ICINGHeader* icing_header, struct Routi
     // 路径长度
     int path_length = rte->path_length;
     // 起始指针
-    unsigned char* validation_start_pointer = return_icing_proof_start_pointer(icing_header);
+    unsigned char* validation_start_pointer = get_icing_proof_start_pointer(icing_header);
     // 进行路径部分内存分配以及填充
     // -------------------------------------------------------------------------------------
     // 1. 先进行静态哈希的计算
-    unsigned char* hash_result = calculate_hash(pvs->hash_api, (unsigned char*)icing_header, sizeof(struct ICINGHeader));
+    unsigned char* hash_result = calculate_icing_hash(pvs->hash_api, icing_header);
     unsigned char* hmac_result = NULL;
     struct ProofAndHardner* proof_list = (struct ProofAndHardner*)(validation_start_pointer);
     for(index = 0; index < path_length; index++){
@@ -231,7 +231,6 @@ struct sk_buff* self_defined__icing_make_skb(struct sock *sk,
 
     // 等待一切就绪后计算 check
     icing_send_check(icing_header);
-
     skb->priority = (cork->tos != -1) ? cork->priority : sk->sk_priority;
     skb->mark = cork->mark;
     skb->tstamp = cork->transmit_time;

@@ -1,9 +1,9 @@
 #include <net/udp.h>
-#include <net/icmp.h>s
+#include <net/icmp.h>
 #include <net/xfrm.h>
 #include "tools/tools.h"
 #include "hooks/transport_layer/udp/udp_rcv/udp_rcv.h"
-#include "structure/header/lir_header.h"
+#include "structure/header/tools.h"
 
 
 char* udp_unicast_rcv_skb_str = "udp_unicast_rcv_skb";
@@ -27,7 +27,8 @@ bool resolve_udp_rcv_inner_functions_address(void){
 // 计算伪首部的
 static __wsum pv_compute_pseudo(struct sk_buff *skb, int proto)
 {
-    return csum_tcpudp_nofold(lir_hdr(skb)->source, lir_hdr(skb)->source,
+    __u16 source = get_source_from_skb(skb);
+    return csum_tcpudp_nofold(source, source,
                               skb->len, proto, 0);
 }
 
@@ -35,9 +36,9 @@ static inline struct sock *copy__udp4_lib_lookup_skb(struct sk_buff *skb,
                                                      __be16 sport, __be16 dport,
                                                      struct udp_table *udptable, __be32 recv_addr)
 {
-    const struct LiRHeader *pvh = lir_hdr(skb);
+    __u16 source = get_source_from_skb(skb);
 
-    return __udp4_lib_lookup(dev_net(skb->dev), pvh->source, sport,
+    return __udp4_lib_lookup(dev_net(skb->dev), source, sport,
                              recv_addr, dport, inet_iif(skb),
                              inet_sdif(skb), udptable, skb); // 这个是暴露的 EXPOSED 的函数
 }
@@ -97,7 +98,7 @@ int pv_udp_rcv_core(struct sk_buff *skb, struct udp_table *udptable, int proto, 
 
     uh   = udp_hdr(skb);
     ulen = ntohs(uh->len);
-    saddr = lir_hdr(skb)->source;
+    saddr = get_source_from_skb(skb);
     daddr = receive_addr;
 
     if (ulen > skb->len)

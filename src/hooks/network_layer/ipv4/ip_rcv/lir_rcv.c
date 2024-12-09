@@ -11,11 +11,11 @@
 int lir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev){
     // 1. 初始化变量
     struct net* net = dev_net(dev);
-    struct LiRHeader* pvh = lir_hdr(skb);
+    struct LiRHeader* lir_header = lir_hdr(skb);
     struct PathValidationStructure* pvs = get_pvs_from_ns(net);
     int process_result;
     // 2. 进行消息的打印
-    PRINT_LIR_HEADER(pvh);
+    PRINT_LIR_HEADER(lir_header);
     // 3. 进行初级的校验
     skb = lir_rcv_validate(skb, net);
     // 4. 进行实际的转发
@@ -24,10 +24,12 @@ int lir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
     if(NET_RX_SUCCESS == process_result) {
         LOG_WITH_PREFIX("local deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
-        pv_local_deliver(skb, receive_interface_address);
+        pv_local_deliver(skb, lir_header->protocol,
+                         receive_interface_address);
         return 0;
     } else {
         // 5.2 进行数据包的释放
+        LOG_WITH_PREFIX("drop packet");
         kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
         return 0;
     }
