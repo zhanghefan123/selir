@@ -6,7 +6,7 @@
  * @param bucket_count
  * @return
  */
-struct HashBasedRoutingTable *initialize_hbrt(int bucket_count) {
+struct HashBasedRoutingTable *init_hbrt(int bucket_count) {
     int index;
     // 链地址法的左侧竖直列表
     struct hlist_head *head_pointer_list = NULL;
@@ -120,8 +120,10 @@ int free_hbrt(struct HashBasedRoutingTable *hbrt) {
                 return -1;
             }
             hlist_for_each_entry_safe(current_entry, next, hash_bucket, pointer) {
-                hlist_del(&current_entry->pointer);
-                free_rte(current_entry);
+                if(NULL != current_entry) {
+                    hlist_del(&current_entry->pointer);
+                    free_rte(current_entry);
+                }
             }
         }
         // 清空 head_pointer_list 引入的 memory 开销

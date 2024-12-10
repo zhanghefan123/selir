@@ -15,7 +15,7 @@ asmlinkage int hook_ip_rcv(struct sk_buff *skb,
         return lir_rcv(skb, dev, pt, orig_dev);
     } else if (ICING_VERSION_NUMBER == version_number) {
         return icing_rcv(skb, dev, pt, orig_dev);
-    } else if (OPT_VERSION_NUMBER == version_number) {
+    } else if ((OPT_ESTABLISH_VERSION_NUMBER == version_number) || (OPT_DATA_VERSION_NUMBER == version_number)) {
         return opt_rcv(skb, dev, pt, orig_dev);
     } else {
         LOG_WITH_PREFIX("unknown packet type");

@@ -39,7 +39,7 @@ static void fill_first_packet_session_id(struct OptHeader* opt_header, struct Se
 }
 
 static void fill_first_packet_path_length(struct OptHeader* opt_header, int path_length) {
-    __u16* path_length_start_pointer = (__u16*)(get_path_length_start_pointer(opt_header));
+    __u16* path_length_start_pointer = (__u16*)(get_opt_path_length_start_pointer(opt_header));
     *path_length_start_pointer = path_length;
 }
 
@@ -81,7 +81,7 @@ static void fill_establish_packet_fields(struct OptHeader *opt_header, struct Ro
 /**
  * 填充后续包的头部
  */
-static void fill_data_packet_fields() {
+static void fill_data_packet_fields(void) {
 
 }
 
@@ -128,8 +128,6 @@ struct sk_buff *self_defined_opt_make_skb(struct sock *sk,
                                           struct inet_cork *cork, unsigned int flags, struct RoutingCalcRes *rcr) {
     struct sk_buff_head queue;
     int err;
-    struct net *current_ns = sock_net(sk);
-    struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
 
     if (flags & MSG_PROBE)
         return NULL;
@@ -147,7 +145,7 @@ struct sk_buff *self_defined_opt_make_skb(struct sock *sk,
     // 判断是否发送了第一个数据包
     // --------------------------------------------------
     bool sent_first_packet;
-    if(NULL == sk){
+    if(NULL == sk->path_validation_sock_structure){
         sent_first_packet = false;
     } else {
         sent_first_packet = true;
@@ -183,8 +181,6 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     struct OptHeader *opt_header;
     struct PathValidationStructure *pvs = get_pvs_from_ns(net);
     struct RoutingTableEntry *rte = rcr->rtes[0];
-    unsigned char *bloom_pointer_start = NULL;
-    unsigned char *dest_pointer_start = NULL;
 
     __be16 df = 0;
     __u8 ttl;
@@ -232,6 +228,8 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     opt_header->current_path_index = 0; // 当前的索引 (字段12)
     // ---------------------------------------------------------------------------------------
 
+
+
     // 计算 session_id -> 利用 source / link_identifiers / node_ids / timestamp
     // ---------------------------------------------------------------------------------------
     struct SessionID session_id;
@@ -245,17 +243,19 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     }
     // ---------------------------------------------------------------------------------------
 
+
+
     // 头部后续部分初始化
     // ---------------------------------------------------------------------------------------
     // 1. 如果尚未发送第一个包
     if (!sent_first_packet) {
         fill_establish_packet_fields(opt_header, rcr->rtes[0], session_id);
-    }
-    else // 2. 如果已经发送第一个包
-    {
+    } else { // 2. 如果已经发送第一个包
         fill_data_packet_fields();
     }
     // ---------------------------------------------------------------------------------------
+
+
 
     // 等待一切就绪后计算 check
     opt_send_check(opt_header);
@@ -263,7 +263,6 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     skb->mark = cork->mark;
     skb->tstamp = cork->transmit_time;
     skb->protocol = htons(ETH_P_IP);
-
 
     // 当发送完成之后修改 sent_first_packet 的状态
     // 本来下面的代码是想放在 opt_make_skb 之后的, 但是由于要计算 session_id 还是算了

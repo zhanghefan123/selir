@@ -16,7 +16,7 @@ struct HashBasedRoutingTable {
     struct hlist_head *bucket_array;
 };
 
-struct HashBasedRoutingTable *initialize_hbrt(int bucket_count);
+struct HashBasedRoutingTable *init_hbrt(int bucket_count);
 
 struct hlist_head *get_bucket_in_hbrt(struct HashBasedRoutingTable *hbrt,
                                       int source_id,

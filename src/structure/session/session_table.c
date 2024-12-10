@@ -4,23 +4,29 @@
 
 /**
  * 初始化会话表项
- * @param source
- * @param dest
- * @param path_length
- * @param current_index
- * @param output_interface
+ * @param session_id 会话 id
+ * @param upstream_nodes_count
+ * @param output_interface 出接口
  * @return
  */
-struct SessionTableEntry *init_ste(struct SessionID* session_id,
-                                   int source,
-                                   int path_length,
-                                   struct net_device *output_interface) {
+struct SessionTableEntry *init_ste_in_dest(struct SessionID* session_id,
+                                           int upstream_nodes_count,
+                                           struct net_device *output_interface) {
     struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
     ste->session_id.first_part = session_id->first_part;
     ste->session_id.second_part = session_id->second_part;
-    ste->source = source;
-    ste->path_length = path_length;
-    ste->path = (struct OptHop*)(kmalloc(sizeof(struct OptHop) * path_length, GFP_KERNEL));
+    ste->encrypt_len = upstream_nodes_count;
+    ste->encrypt_order = (int*)(kmalloc(sizeof(int) * upstream_nodes_count, GFP_KERNEL));
+    ste->output_interface = output_interface;
+    return ste;
+}
+
+struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *session_id, struct net_device *output_interface){
+    struct SessionTableEntry* ste = (struct SessionTableEntry*) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
+    ste->session_id.first_part = session_id->first_part;
+    ste->session_id.second_part = session_id->second_part;
+    ste->encrypt_len = 0;
+    ste->encrypt_order = NULL;
     ste->output_interface = output_interface;
     return ste;
 }
@@ -31,8 +37,8 @@ struct SessionTableEntry *init_ste(struct SessionID* session_id,
  */
 void free_ste(struct SessionTableEntry* ste) {
     if (NULL != ste){
-        if(NULL != ste->path) {
-            kfree(ste->path);
+        if(NULL != ste->encrypt_order) {
+            kfree(ste->encrypt_order);
         }
     }
 }
@@ -76,25 +82,26 @@ int free_hbst(struct HashBasedSessionTable* hbst){
         struct hlist_node *next;
         printk(KERN_EMERG "hash bucket count: %d \n", hbst->bucket_count);
         for (index = 0; index < hbst->bucket_count; index++) {
-            hash_bucket = &hbst->bucket_array[index];
+            hash_bucket = &(hbst->bucket_array[index]);
             // 每一个 hash_bucket 都被初始化过了，所以不能为NULL
             if (NULL == hash_bucket) {
                 LOG_WITH_PREFIX("hash bucket is null");
                 return -1;
             }
             hlist_for_each_entry_safe(current_entry, next, hash_bucket, pointer) {
-                hlist_del(&current_entry->pointer);
-                free_ste(current_entry);
+                LOG_WITH_PREFIX("hello");
+                if(NULL != current_entry){
+                    hlist_del(&current_entry->pointer);
+                    free_ste(current_entry);
+                }
             }
         }
         // 清空 head_pointer_list 引入的 memory 开销
         if (NULL != hbst->bucket_array){
             kfree(hbst->bucket_array);
-            hbst->bucket_array = NULL;
         }
         // 释放 hbrt
         kfree(hbst);
-        hbst = NULL;
         LOG_WITH_PREFIX("delete hash based session table successfully!");
     } else {
         LOG_WITH_PREFIX("hash based session table is NULL");

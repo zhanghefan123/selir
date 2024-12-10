@@ -1,7 +1,7 @@
 # prepare works
 
 1. 需要在 struct net 结构体之中添加 path_validation_structure 这个 void 指针
-2. 需要在 struct sock 结构体之中添加 bool first_packet 这个变量。
+2. 需要在 struct sock 结构体之中添加 path_validation_sock_structure 这个变量。
 
 # attentions:
 
@@ -10,8 +10,6 @@
 3. 在启动容器之后不能进行内核模块的卸载与重新装载, 因为在创建容器的时候传递了路由, 接口等信息, 重新
 安装内核模块之后这些信息都将会消逝。
 4. 原有的代码使用 original_code 标识
-
-
  
 # tips:
 
@@ -27,7 +25,7 @@
 
 4. 当 skb_copy 的时候并不会进行 skb->sk 的拷贝, 还有以后不要尝试从通过 udp_sendmsg 向多个地方进行发包了, 试过很多次了
 
-5. 原先在 free_pvs 之中进行了 free_crypto_api, 现在已经注释掉了，因为如果不注释，多次 insmod rmmod 之后会报错
+5. 原先在给 current_ns->pvs 赋值之前并没有将其置为 NULL, 可能出现问题。必须要将其置为 NULL.
 
 6. 在计算哈希之前需要将校验和置为0
 

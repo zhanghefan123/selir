@@ -170,7 +170,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct Destinatio
         }
     } else if(OPT_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol){
         if(1 != dest_and_proto_info->number_of_destinations){
-            LOG_WITH_PREFIX("icing only support unicast");
+            LOG_WITH_PREFIX("opt only support unicast");
             return NULL;
         } else {
             int destination = dest_and_proto_info->destinations[0];

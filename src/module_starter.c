@@ -21,7 +21,8 @@ static int __net_init module_net_init(struct net* current_ns){
     LOG_WITH_EDGE("net init process");
     // 1. 初始化 path_validation_structure
     struct PathValidationStructure* pvs = init_pvs();
-    // 2. 设置到 netnamespace 之中
+    current_ns->path_validation_structure = NULL;
+    // 2. 设置到 net namespace 之中
     set_pvs_in_ns(current_ns, pvs);
     LOG_WITH_EDGE("net init process");
     return 0;
@@ -36,7 +37,7 @@ static void __net_exit module_net_exit(struct net* current_ns){
     LOG_WITH_EDGE("net exit process");
     // 1. 取出 path_validation_structure
     struct PathValidationStructure* pvs = get_pvs_from_ns(current_ns);
-//    // 2. 释放 path_validation_structure
+    // 2. 释放 path_validation_structure
     free_pvs(pvs);
     LOG_WITH_EDGE("net exit process");
 }

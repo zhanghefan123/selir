@@ -28,7 +28,7 @@ void PRINT_OPT_HEADER(struct OptHeader* opt_header){
     // 2. 判断版本类型
     if(OPT_ESTABLISH_VERSION_NUMBER == opt_header->version){
         int index;
-        int path_length = *((__u16*)(get_path_length_start_pointer(opt_header)));
+        int path_length = *((__u16*)(get_opt_path_length_start_pointer(opt_header)));
         struct OptHop* hops = (struct OptHop*)(get_opt_path_start_pointer(opt_header));
         for(index = 0; index < path_length; index++){
             printk(KERN_EMERG "node_id: %d, link_identifier: %d\n", hops[index].node_id, hops[index].link_id);

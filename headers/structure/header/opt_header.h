@@ -93,7 +93,11 @@ static inline struct OptHeader *opt_hdr(const struct sk_buff *skb) {
     return (struct OptHeader *) skb_network_header(skb);
 }
 
-static inline unsigned char *get_path_length_start_pointer(struct OptHeader* opt_header){
+static inline unsigned char* get_first_opt_session_id_pointer(struct OptHeader* opt_header) {
+    return (unsigned char*)(opt_header) + sizeof(struct OptHeader);
+}
+
+static inline unsigned char *get_opt_path_length_start_pointer(struct OptHeader* opt_header){
     return (unsigned char *) (opt_header) + sizeof(struct OptHeader) + sizeof(struct SessionID);
 }
 

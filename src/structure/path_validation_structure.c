@@ -17,6 +17,7 @@ struct PathValidationStructure *init_pvs(void) {
     pvs->abrt = NULL;
     pvs->hbrt = NULL;
     pvs->abit = NULL;
+    pvs->bloom_filter = NULL;
     pvs->hbst = init_hbst(100); // 这里固定的 bucket 数量为 100
     pvs->hash_api = generate_hash_api();
     pvs->hmac_api = generate_hmac_api();
@@ -30,23 +31,24 @@ struct PathValidationStructure *init_pvs(void) {
  */
 void free_pvs(struct PathValidationStructure *pvs) {
     if(NULL != pvs) {
-        // 进行基于数组路由表的释放
+//        // 进行基于数组路由表的释放
         free_abrt(pvs->abrt);
-        // 进行基于哈希的路由表的释放
+//        // 进行基于哈希的路由表的释放
         free_hbrt(pvs->hbrt);
-        // 进行基于数组的接口表的释放
+//        // 进行基于数组的接口表的释放
         free_abit(pvs->abit);
-        // 进行基于哈希的会话表的释放
+//        // 进行基于哈希的会话表的释放
         free_hbst(pvs->hbst);
-        // 进行布隆过滤器的释放
+//        // 进行布隆过滤器的释放
         delete_bloom_filter(pvs->bloom_filter);
 
 // ---------------- 一旦进行这两个数据结构的释放就会出错 ----------------
         // 进行哈希数据结构的释放
-//        free_crypto_api(pvs->hash_api);
+        free_crypto_api(pvs->hash_api);
         // 进行 hmac 数据结构的释放
-//        free_crypto_api(pvs->hmac_api);
+        free_crypto_api(pvs->hmac_api);
 // ---------------- 一旦进行这两个数据结构的释放就会出错 ----------------
+        kfree(pvs);
     }
 }
 
@@ -64,7 +66,7 @@ void initialize_routing_and_forwarding_table(struct PathValidationStructure *pvs
         pvs->abrt = init_abrt(number_of_routes_or_buckets);
         pvs->routing_table_type = ARRAY_BASED_ROUTING_TABLE_TYPE;
     } else {
-        pvs->hbrt = initialize_hbrt(number_of_routes_or_buckets);
+        pvs->hbrt = init_hbrt(number_of_routes_or_buckets);
         pvs->routing_table_type = HASH_BASED_ROUTING_TABLE_TYPE;
     }
     pvs->abit = init_abit(number_of_interfaces);

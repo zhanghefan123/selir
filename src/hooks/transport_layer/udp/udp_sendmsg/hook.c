@@ -27,21 +27,21 @@ bool resolve_udp_sendmsg_inner_functions_address(void){
 }
 
 
-/**
- * callback function
- * @param sk
- * @param msg
- * @param len
- * @return
- */
-asmlinkage int hook_udp_sendmsg(struct sock* sk, struct msghdr* msg, size_t len){
-    int network_type = resolve_socket_type(sk);
-    if (NORMAL_SOCKET_TYPE == network_type) {
-        return orig_udp_sendmsg(sk, msg, len);
-    } else if (LINK_IDENTIFIED_SOCKET_TYPE == network_type){
-        return self_defined_udp_sendmsg(sk,msg,len);
-    } else {
-        LOG_WITH_PREFIX("unsupported network type");
-        return -EINVAL;
-    }
-}
+///**
+// * callback function
+// * @param sk
+// * @param msg
+// * @param len
+// * @return
+// */
+//asmlinkage int hook_udp_sendmsg(struct sock* sk, struct msghdr* msg, size_t len){
+//    int network_type = resolve_socket_type(sk);
+//    if (NORMAL_SOCKET_TYPE == network_type) {
+//        return orig_udp_sendmsg(sk, msg, len);
+//    } else if (LINK_IDENTIFIED_SOCKET_TYPE == network_type){
+//        return self_defined_udp_sendmsg(sk,msg,len);
+//    } else {
+//        LOG_WITH_PREFIX("unsupported network type");
+//        return -EINVAL;
+//    }
+//}
