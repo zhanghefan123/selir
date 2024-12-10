@@ -8,24 +8,24 @@
 #include <net/inet_ecn.h>
 #include <linux/inetdevice.h>
 
-int opt_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type *pt, struct net_device* orig_dev){
+int opt_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev) {
     // 1. 初始化变量
     int process_result;
-    struct net* current_ns = dev_net(dev);
-    struct OptHeader* opt_header = opt_hdr(skb);
-    struct PathValidationStructure* pvs = get_pvs_from_ns(current_ns);
+    struct net *current_ns = dev_net(dev);
+    struct OptHeader *opt_header = opt_hdr(skb);
+    struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
     // 2. 进行初级的校验
     skb = opt_rcv_validate(skb, current_ns);
-    if (NULL == skb){
+    if (NULL == skb) {
         LOG_WITH_PREFIX("skb == NULL");
         return 0;
     }
     // 3. 进行数据包的打印
     PRINT_OPT_HEADER(opt_header);
     // 4. 进行不同的数据包的处理
-    if(OPT_ESTABLISH_VERSION_NUMBER == opt_header->version){
+    if (OPT_ESTABLISH_VERSION_NUMBER == opt_header->version) {
         process_result = opt_forward_session_establish_packets(skb, pvs, current_ns, orig_dev);
-    } else if(OPT_DATA_VERSION_NUMBER == opt_header->version){
+    } else if (OPT_DATA_VERSION_NUMBER == opt_header->version) {
         process_result = opt_forward_data_packets(skb, pvs, current_ns, orig_dev);
     } else {
         LOG_WITH_PREFIX("unsupported opt packet type");
@@ -33,12 +33,12 @@ int opt_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type *pt,
         return 0;
     }
     // 5. 进行数据包本地的处理
-    if(NET_RX_SUCCESS == process_result) {
+    if (NET_RX_SUCCESS == process_result) {
         LOG_WITH_PREFIX("local deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
-        pv_local_deliver(skb, opt_header->protocol,receive_interface_address);
+        pv_local_deliver(skb, opt_header->protocol, receive_interface_address);
         return 0;
-    } else if(NET_RX_DROP == process_result){
+    } else if (NET_RX_DROP == process_result) {
         LOG_WITH_PREFIX("packet drop");
         kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
         return 0;
@@ -48,40 +48,43 @@ int opt_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type *pt,
     }
 }
 
-int opt_forward_session_establish_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
+int
+opt_forward_session_establish_packets(struct sk_buff *skb, struct PathValidationStructure *pvs, struct net *current_ns,
+                                      struct net_device *in_dev) {
     // 索引
     int index;
     // 拿到头部
-    struct OptHeader* opt_header = opt_hdr(skb);
+    struct OptHeader *opt_header = opt_hdr(skb);
     // 拿到 path_length
-    int path_length = *((__u16*) get_first_opt_path_length_start_pointer(opt_header));
+    int path_length = *((__u16 *) get_first_opt_path_length_start_pointer(opt_header));
     // 进行路径的解析
-    struct OptHop* path = (struct OptHop*)(get_first_opt_path_start_pointer(opt_header));
+    struct OptHop *path = (struct OptHop *) (get_first_opt_path_start_pointer(opt_header));
     // 拿到 session_id
-    struct SessionID* session_id = (struct SessionID*)(get_first_opt_session_id_pointer(opt_header));
-    printk(KERN_EMERG "rcv session_id: %llu, %llu", session_id->first_part, session_id->second_part);
+    struct SessionID *session_id = (struct SessionID *) (get_first_opt_session_id_pointer(opt_header));
     // 拿到当前的索引
     int current_path_index = opt_header->current_path_index;
     // 拿到接口表
-    struct ArrayBasedInterfaceTable* abit = pvs->abit;
+    struct ArrayBasedInterfaceTable *abit = pvs->abit;
     // 拿到会话表
-    struct HashBasedSessionTable* hbst = pvs->hbst;
+    struct HashBasedSessionTable *hbst = pvs->hbst;
     // 当前节点id
     int current_node_id = pvs->node_id;
+    // 源节点
+    int source = opt_header->source;
     // 目的节点
     int destination = opt_header->dest;
     // 拿到当前的 link_identifier
     int current_link_identifier = path[current_path_index].link_id;
     // 如果当前节点 id == 目的节点
-    if(current_node_id == destination) {
+    if (current_node_id == destination) {
         // 路径长度
         int encrypt_count = path_length;
         // 创建会话表项
-        struct SessionTableEntry* ste = init_ste_in_dest(session_id, encrypt_count);
+        struct SessionTableEntry *ste = init_ste_in_dest(session_id, encrypt_count);
         int count = 0;
-        for(index = current_path_index; index >= 0 ; index--){ // 填充加密顺序
+        for (index = current_path_index; index >= 0; index--) { // 填充加密顺序
             ste->encrypt_order[count] = path[current_path_index].node_id;
-            count+=1;
+            count += 1;
         }
         // 将路径添加到 hbst 之中
         add_entry_to_hbst(hbst, ste);
@@ -89,17 +92,24 @@ int opt_forward_session_establish_packets(struct sk_buff* skb, struct PathValida
         return NET_RX_DROP;
     } else {
         // 等待被填充的出接口
-        struct net_device* output_interface = NULL;
+        struct net_device *output_interface = NULL;
         // 进行转发方向的决定
-        for(index = 0; index < abit->number_of_interfaces; index++){
-            struct InterfaceTableEntry* ite = abit->interfaces[index];
-            if(current_link_identifier == ite->link_identifier){
+        for (index = 0; index < abit->number_of_interfaces; index++) {
+            struct InterfaceTableEntry *ite = abit->interfaces[index];
+            if (current_link_identifier == ite->link_identifier) {
                 output_interface = ite->interface;
                 break;
             }
         }
+        // 需要进行前驱节点的记录
+        int previous_node;
+        if (0 == current_path_index) {
+            previous_node = source;
+        } else {
+            previous_node = path[index].node_id;
+        }
         // 创建会话表项目
-        struct SessionTableEntry* ste = init_ste_in_intermediate(session_id, output_interface);
+        struct SessionTableEntry *ste = init_ste_in_intermediate(session_id, output_interface, previous_node);
         // 将会话表项添加到 hbst 之中
         add_entry_to_hbst(hbst, ste);
         // 进行 current_path_index 的更新
@@ -107,25 +117,107 @@ int opt_forward_session_establish_packets(struct sk_buff* skb, struct PathValida
         // 在更新完了 current_path_index 之后一定需要进行 check 的更新
         opt_send_check(opt_header);
         // 进行数据包的转发
-        if(NULL != output_interface){
+        if (NULL != output_interface) {
             pv_packet_forward(skb, output_interface, current_ns);
         }
         return NET_RX_NOTHING;
     }
 }
 
+static unsigned char *
+calculate_session_key(int current_node_id, struct shash_desc *hmac_api, struct OptHeader *opt_header) {
+    unsigned char *session_id_pointer = get_other_opt_session_id_start_pointer(opt_header);
+    char secret_value[20];
+    snprintf(secret_value, sizeof(secret_value), "key-%d", current_node_id);
+    unsigned char *session_key = calculate_hmac(hmac_api,
+                                                session_id_pointer,
+                                                sizeof(struct SessionID),
+                                                (unsigned char *) (secret_value),
+                                                (int) (strlen(secret_value)));
+    return session_key;
+}
 
-int opt_forward_data_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
+/**
+ * 进行上游节点是否正确转发的校验
+ * @param opt_header 同步
+ * @param pvs 路径验证结构体
+ * @param ste 会话表项
+ * @param session_key 会话密钥
+ */
+static void proof_verification(struct OptHeader *opt_header,
+                               struct PathValidationStructure *pvs,
+                               struct SessionTableEntry *ste,
+                               unsigned char* session_key) {
+    // 1. 获取包内指针
+    unsigned char *pvf_start_pointer = get_other_opt_pvf_start_pointer(opt_header);
+    unsigned char *hash_start_pointer = get_other_opt_hash_start_pointer(opt_header);
+    unsigned char *session_id_pointer = get_other_opt_session_id_start_pointer(opt_header);
+    time64_t * time_stamp_pointer = (time64_t *) get_other_opt_timestamp_start_pointer(opt_header);
+    struct OptOpv *opvs = (struct OptOpv *) (get_other_opt_opv_start_pointer(opt_header));
+    int current_path_index = opt_header->current_path_index;
+    int current_node_id = pvs->node_id;
+    // 2. 计算 combination
+    char combination[100];
+    // 2.1 拼接前一个 pvf
+    memcpy(combination, pvf_start_pointer, PVF_LENGTH);
+    // 2.2 拼接 data hash
+    memcpy(combination, hash_start_pointer, HASH_LENGTH);
+    // 2.2 拼接前驱节点
+    *((int *) (combination + PVF_LENGTH + HASH_LENGTH)) = ste->previous_node;
+    // 2.4 拼接 timestamp
+    *((time64_t *) (combination + PVF_LENGTH + HASH_LENGTH + sizeof(int))) = (*time_stamp_pointer);
+    // 3. 利用 session_key 计算 opv
+    unsigned char *hmac_result = calculate_hmac(pvs->hmac_api,
+                                                (unsigned char *) combination,
+                                                PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t),
+                                                session_key,
+                                                HMAC_OUTPUT_LENGTH);
+
+    // 5. 进行比较
+    bool result = memory_compare((unsigned char *) (&(opvs[current_path_index])), hmac_result, HMAC_OUTPUT_LENGTH);
+    if (result) {
+        LOG_WITH_PREFIX("verification succeed");
+    } else {
+        LOG_WITH_PREFIX("verification failed");
+    }
+
+    // 5. 进行 hmac_result 的释放 / session_key 先不进行释放, 一会儿还要用来进行 pvf 的更新。
+    kfree(hmac_result);
+}
+
+/**
+ * 进行 proof 的更新
+ * @param opt_header opt 头部
+ * @param hmac_api hmac api
+ * @param session_key 会话的密钥
+ */
+static void proof_update(struct OptHeader *opt_header, struct shash_desc* hmac_api, unsigned char* session_key) {
+    // 1. 获取包内指针
+    unsigned char *pvf_start_pointer = get_other_opt_pvf_start_pointer(opt_header);
+    // 2. 计算 mac
+    unsigned char* hmac_result = calculate_hmac(hmac_api,
+                                                pvf_start_pointer,
+                                                PVF_LENGTH,
+                                                session_key,
+                                                HMAC_OUTPUT_LENGTH);
+    // 3. 更新到 pvf 之中
+    memcpy(pvf_start_pointer, hmac_result, PVF_LENGTH);
+}
+
+
+int opt_forward_data_packets(struct sk_buff *skb, struct PathValidationStructure *pvs, struct net *current_ns,
+                             struct net_device *in_dev) {
     // 是否本地提交
     bool local_deliver;
     // 找到 opt_header
-    struct OptHeader* opt_header = opt_hdr(skb);
+    struct OptHeader *opt_header = opt_hdr(skb);
     // 找到 session_id
-    struct SessionID* session_id = (struct SessionID*)get_other_opt_session_id_start_pointer(opt_header);
+    struct SessionID *session_id = (struct SessionID *) get_other_opt_session_id_start_pointer(opt_header);
     // 进行相应的表项的查找
-    struct SessionTableEntry* ste = find_ste_in_hbst(pvs->hbst, session_id);
+    struct SessionTableEntry *ste = find_ste_in_hbst(pvs->hbst, session_id);
     // 进行相应的 verification 和 update
     // ----------------------------------------
+
     /*
      * 待填充
      */
@@ -133,8 +225,8 @@ int opt_forward_data_packets(struct sk_buff* skb, struct PathValidationStructure
     // 进行校验和的更新
     opt_send_check(opt_header);
     // 进行相应的转发
-    if(NULL != ste){
-        struct sk_buff* skb_copied = skb_copy(skb, GFP_KERNEL);
+    if (NULL != ste) {
+        struct sk_buff *skb_copied = skb_copy(skb, GFP_KERNEL);
         // 无需更新 current_index 直接转发即
         pv_packet_forward(skb_copied, ste->output_interface, current_ns);
     } else {
@@ -144,16 +236,16 @@ int opt_forward_data_packets(struct sk_buff* skb, struct PathValidationStructure
     int current_node_id = pvs->node_id;
     // 判断是否到达了目的节点
     local_deliver = (current_node_id == opt_header->dest);
-    if (local_deliver){
+    if (local_deliver) {
         return NET_RX_SUCCESS;
     } else {
         return NET_RX_DROP;
     }
 }
 
-struct sk_buff* opt_rcv_validate(struct sk_buff* skb, struct net* net){
+struct sk_buff *opt_rcv_validate(struct sk_buff *skb, struct net *net) {
     // 获取头部
-    const struct OptHeader* opt_header;
+    const struct OptHeader *opt_header;
     // 丢包的原因
     int drop_reason;
     // 总的长度
@@ -215,8 +307,7 @@ struct sk_buff* opt_rcv_validate(struct sk_buff* skb, struct net* net){
     opt_header = opt_hdr(skb);
 
     // 如果校验和不正确的话, goto csum_error
-    if (unlikely(ip_fast_csum((u8 *)opt_header, opt_header->hdr_len / 4)))
-    {
+    if (unlikely(ip_fast_csum((u8 *) opt_header, opt_header->hdr_len / 4))) {
         LOG_WITH_PREFIX("csum error");
         goto csum_error;
     }

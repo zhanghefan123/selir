@@ -422,19 +422,19 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
         pvss->keys = (char **) (kmalloc(sizeof(char *) * rte->path_length, GFP_KERNEL));
         sk->path_validation_sock_structure = (void *) (pvss);
         int index;
-        char symmetric_key[20];
+        char secret_value[20];
         for (index = 0; index < rte->path_length; index++) {
             int node_id = rte->node_ids[index];
             // 对 session id 做一次 hmac 的到 key 使用的 key 为 key-%d
-            snprintf(symmetric_key, sizeof(symmetric_key), "key-%d", node_id);
+            snprintf(secret_value, sizeof(secret_value), "key-%d", node_id);
             // 为 key 分配内存
             pvss->keys[index] = (char *) kmalloc(sizeof(char) * HMAC_OUTPUT_LENGTH, GFP_KERNEL);
             // 计算 hmac
             unsigned char *session_key = calculate_hmac(pvs->hmac_api,
                                                         (unsigned char *) (&session_id),
                                                         sizeof(struct SessionID),
-                                                        (unsigned char *) (symmetric_key),
-                                                        (int) (strlen(symmetric_key)));
+                                                        (unsigned char *) (secret_value),
+                                                        (int) (strlen(secret_value)));
             // 进行 hmac 的拷贝
             memcpy(pvss->keys[index], session_key, HMAC_OUTPUT_LENGTH);
             // 进行 hmac 的释放

@@ -9,24 +9,27 @@
  * @param output_interface 出接口
  * @return
  */
-struct SessionTableEntry *init_ste_in_dest(struct SessionID* session_id,
+struct SessionTableEntry *init_ste_in_dest(struct SessionID *session_id,
                                            int encrypt_count) {
     struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
     ste->session_id.first_part = session_id->first_part;
     ste->session_id.second_part = session_id->second_part;
     ste->encrypt_len = encrypt_count;
-    ste->encrypt_order = (int*)(kmalloc(sizeof(int) * encrypt_count, GFP_KERNEL));
+    ste->encrypt_order = (int *) (kmalloc(sizeof(int) * encrypt_count, GFP_KERNEL));
     ste->output_interface = NULL;
     return ste;
 }
 
-struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *session_id, struct net_device *output_interface){
-    struct SessionTableEntry* ste = (struct SessionTableEntry*) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
+struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *session_id,
+                                                   struct net_device *output_interface,
+                                                   int previous_node) {
+    struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
     ste->session_id.first_part = session_id->first_part;
     ste->session_id.second_part = session_id->second_part;
     ste->encrypt_len = 0;
     ste->encrypt_order = NULL;
     ste->output_interface = output_interface;
+    ste->previous_node = previous_node;
     return ste;
 }
 
@@ -34,9 +37,9 @@ struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *session_id,
  * 进行会话表条的释放
  * @param ste 会话表的条目
  */
-void free_ste(struct SessionTableEntry* ste) {
-    if (NULL != ste){
-        if(NULL != ste->encrypt_order) {
+void free_ste(struct SessionTableEntry *ste) {
+    if (NULL != ste) {
+        if (NULL != ste->encrypt_order) {
             kfree(ste->encrypt_order);
         }
     }
@@ -50,7 +53,7 @@ void free_ste(struct SessionTableEntry* ste) {
 struct HashBasedSessionTable *init_hbst(int bucket_count) {
     int index;
     // 链地址发的左侧竖直的列表
-    struct hlist_head* head_pointer_list = NULL;
+    struct hlist_head *head_pointer_list = NULL;
     head_pointer_list = (struct hlist_head *) kmalloc(sizeof(struct hlist_head) * bucket_count, GFP_KERNEL);
     if (NULL == head_pointer_list) {
         LOG_WITH_PREFIX("alloc memory for head_pointer_list failed!");
@@ -72,9 +75,9 @@ struct HashBasedSessionTable *init_hbst(int bucket_count) {
  * @param hbst 基于哈希的会话表
  * @return
  */
-int free_hbst(struct HashBasedSessionTable* hbst){
+int free_hbst(struct HashBasedSessionTable *hbst) {
     // 这里首先判断要进行 free 的 hbrt 是否为 NULL
-    if(NULL != hbst){
+    if (NULL != hbst) {
         int index;
         struct hlist_head *hash_bucket = NULL;
         struct SessionTableEntry *current_entry = NULL;
@@ -89,14 +92,14 @@ int free_hbst(struct HashBasedSessionTable* hbst){
             }
             hlist_for_each_entry_safe(current_entry, next, hash_bucket, pointer) {
                 LOG_WITH_PREFIX("hello");
-                if(NULL != current_entry){
+                if (NULL != current_entry) {
                     hlist_del(&current_entry->pointer);
                     free_ste(current_entry);
                 }
             }
         }
         // 清空 head_pointer_list 引入的 memory 开销
-        if (NULL != hbst->bucket_array){
+        if (NULL != hbst->bucket_array) {
             kfree(hbst->bucket_array);
         }
         // 释放 hbrt
@@ -114,7 +117,7 @@ int free_hbst(struct HashBasedSessionTable* hbst){
  * @param session_id 会话 id
  * @return
  */
-struct hlist_head* get_bucket_in_hbst(struct HashBasedSessionTable* hbst, struct SessionID session_id){
+struct hlist_head *get_bucket_in_hbst(struct HashBasedSessionTable *hbst, struct SessionID session_id) {
     u32 index_of_bucket;
     index_of_bucket = session_id.second_part % hbst->bucket_count;
     return &hbst->bucket_array[index_of_bucket];
@@ -126,12 +129,13 @@ struct hlist_head* get_bucket_in_hbst(struct HashBasedSessionTable* hbst, struct
  * @param session_id 会话 id
  * @return
  */
-int session_entry_equal_judgement(struct SessionTableEntry* entry, struct SessionID session_id) {
-    if(NULL == entry){
+int session_entry_equal_judgement(struct SessionTableEntry *entry, struct SessionID session_id) {
+    if (NULL == entry) {
         return 1;
     }
     // 如果两个表项的 session_id 相同即可
-    if((entry->session_id.first_part == session_id.first_part) && (entry->session_id.second_part == session_id.second_part)){
+    if ((entry->session_id.first_part == session_id.first_part) &&
+        (entry->session_id.second_part == session_id.second_part)) {
         return 0;
     } else {
         return 1;
@@ -144,10 +148,10 @@ int session_entry_equal_judgement(struct SessionTableEntry* entry, struct Sessio
  * @param ste 会话表项
  * @return
  */
-int add_entry_to_hbst(struct HashBasedSessionTable* hbst, struct SessionTableEntry* ste){
-    struct hlist_head* hash_bucket = NULL;
-    struct SessionTableEntry* current_ste = NULL;
-    struct hlist_node* next = NULL;
+int add_entry_to_hbst(struct HashBasedSessionTable *hbst, struct SessionTableEntry *ste) {
+    struct hlist_head *hash_bucket = NULL;
+    struct SessionTableEntry *current_ste = NULL;
+    struct hlist_node *next = NULL;
     // 首先找到对应的应该存放的 bucket
     hash_bucket = get_bucket_in_hbst(hbst, ste->session_id);
     if (NULL == hash_bucket) {
@@ -157,8 +161,8 @@ int add_entry_to_hbst(struct HashBasedSessionTable* hbst, struct SessionTableEnt
         return -1;
     }
     // 检查是否出现了相同的会话表项
-    hlist_for_each_entry_safe(current_ste, next, hash_bucket, pointer){
-        if(0 == session_entry_equal_judgement(current_ste, ste->session_id)) {
+    hlist_for_each_entry_safe(current_ste, next, hash_bucket, pointer) {
+        if (0 == session_entry_equal_judgement(current_ste, ste->session_id)) {
             LOG_WITH_PREFIX("already exists session entry");
             free_ste(ste);
         }
@@ -176,7 +180,7 @@ int add_entry_to_hbst(struct HashBasedSessionTable* hbst, struct SessionTableEnt
  * @param session_id session_id 对应的表项
  * @return
  */
-struct SessionTableEntry* find_ste_in_hbst(struct HashBasedSessionTable* hbst, struct SessionID* session_id){
+struct SessionTableEntry *find_ste_in_hbst(struct HashBasedSessionTable *hbst, struct SessionID *session_id) {
     struct hlist_head *hash_bucket = NULL;
     struct SessionTableEntry *current_entry;
     struct hlist_node *next;
