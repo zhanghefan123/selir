@@ -110,7 +110,8 @@ static void fill_icing_validation(struct ICINGHeader* icing_header, struct Routi
         hmac_result = calculate_hmac(pvs->hmac_api,
                                      hash_result,
                                      HASH_OUTPUT_LENGTH,
-                                     symmetric_key);
+                                     (unsigned char*)symmetric_key,
+                                     (int)strlen(symmetric_key));
         // 进行结果的拷贝
         memcpy(&proof_list[index], hmac_result, ICING_PROOF_LENGTH);
         // 进行 hmac 内存的释放

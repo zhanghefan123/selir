@@ -173,7 +173,8 @@ static bool proof_verification(struct ICINGHeader* icing_header, struct PathVali
     unsigned char *hmac_result_final = calculate_hmac(hmac_api,
                                                       static_fields_hash,
                                                       HASH_OUTPUT_LENGTH,
-                                                      symmetric_key);
+                                                      (unsigned char*)symmetric_key,
+                                                      (int)(strlen(symmetric_key)));
     if(0 == current_path_index){
         result = memory_compare((unsigned char*)(&proof_list[current_path_index]),
                                 hmac_result_final,
@@ -186,7 +187,8 @@ static bool proof_verification(struct ICINGHeader* icing_header, struct PathVali
             unsigned char *hmac_result_temp = calculate_hmac(hmac_api,
                                                              static_fields_hash,
                                                              HASH_OUTPUT_LENGTH,
-                                                             symmetric_key);
+                                                             (unsigned char*)symmetric_key,
+                                                             (int)(strlen(symmetric_key)));
             memory_xor(hmac_result_final, hmac_result_temp, ICING_PROOF_LENGTH);
             kfree(hmac_result_temp);
         }
@@ -226,7 +228,8 @@ static void proof_update(struct ICINGHeader* icing_header, struct PathValidation
         unsigned char* hmac_result = calculate_hmac(hmac_api,
                                                     static_fields_hash,
                                                     HMAC_OUTPUT_LENGTH,
-                                                    symmetric_key);
+                                                    (unsigned char*)symmetric_key,
+                                                    (int)(strlen(symmetric_key)));
         memory_xor((unsigned char* )(&(proof_list[index])), hmac_result, ICING_PROOF_LENGTH);
         kfree(hmac_result);
     }

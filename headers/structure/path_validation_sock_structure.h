@@ -9,6 +9,8 @@
 struct PathValidationSockStructure{
     bool sent_first_packet;
     struct SessionID session_id;
+    time64_t timestamp;
+    char** keys; // 每个中间节点的 symmetric key
 };
 
 struct PathValidationSockStructure* init_pvss(void);

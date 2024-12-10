@@ -21,9 +21,7 @@ struct SessionTableEntry {
     struct hlist_node pointer; // 指向的是下一个节点
 };
 
-struct SessionTableEntry *init_ste_in_dest(struct SessionID *session_id,
-                                           int upstream_nodes_count,
-                                           struct net_device *output_interface);
+struct SessionTableEntry *init_ste_in_dest(struct SessionID *session_id, int encrypt_count);
 
 struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *sessionId,
                                                    struct net_device *output_interface);

@@ -5,19 +5,18 @@
 /**
  * 初始化会话表项
  * @param session_id 会话 id
- * @param upstream_nodes_count
+ * @param encrypt_count
  * @param output_interface 出接口
  * @return
  */
 struct SessionTableEntry *init_ste_in_dest(struct SessionID* session_id,
-                                           int upstream_nodes_count,
-                                           struct net_device *output_interface) {
+                                           int encrypt_count) {
     struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
     ste->session_id.first_part = session_id->first_part;
     ste->session_id.second_part = session_id->second_part;
-    ste->encrypt_len = upstream_nodes_count;
-    ste->encrypt_order = (int*)(kmalloc(sizeof(int) * upstream_nodes_count, GFP_KERNEL));
-    ste->output_interface = output_interface;
+    ste->encrypt_len = encrypt_count;
+    ste->encrypt_order = (int*)(kmalloc(sizeof(int) * encrypt_count, GFP_KERNEL));
+    ste->output_interface = NULL;
     return ste;
 }
 

@@ -16,9 +16,8 @@ void PRINT_OPT_HEADER(struct OptHeader* opt_header){
     printk(KERN_EMERG "version: %d\n", opt_header->version);
     printk(KERN_EMERG "ttl: %d\n", opt_header->ttl);
     printk(KERN_EMERG "protocol: %d\n", opt_header->protocol);
-    printk(KERN_EMERG "frag_off: %d\n", ntohs(opt_header->frag_off));
+    printk(KERN_EMERG "frag_off: %d\n", ntohs(opt_header->frag_off)); // frag_off 的正常输出情况是 16384
     printk(KERN_EMERG "id: %d\n", opt_header->id);
-    printk(KERN_EMERG "check: %d\n", opt_header->check);
     printk(KERN_EMERG "source: %d\n", opt_header->source);
     printk(KERN_EMERG "dest: %d\n", opt_header->dest);
     printk(KERN_EMERG "hdr_len: %d\n", opt_header->hdr_len);
@@ -28,8 +27,8 @@ void PRINT_OPT_HEADER(struct OptHeader* opt_header){
     // 2. 判断版本类型
     if(OPT_ESTABLISH_VERSION_NUMBER == opt_header->version){
         int index;
-        int path_length = *((__u16*)(get_opt_path_length_start_pointer(opt_header)));
-        struct OptHop* hops = (struct OptHop*)(get_opt_path_start_pointer(opt_header));
+        int path_length = *((__u16*)(get_first_opt_path_length_start_pointer(opt_header)));
+        struct OptHop* hops = (struct OptHop*)(get_first_opt_path_start_pointer(opt_header));
         for(index = 0; index < path_length; index++){
             printk(KERN_EMERG "node_id: %d, link_identifier: %d\n", hops[index].node_id, hops[index].link_id);
         }

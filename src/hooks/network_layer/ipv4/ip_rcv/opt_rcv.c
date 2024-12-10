@@ -1,80 +1,122 @@
 #include "api/test.h"
 #include "hooks/network_layer/ipv4/ip_rcv/ip_rcv.h"
+#include "hooks/network_layer/ipv4/ip_packet_forward/ip_packet_forward.h"
 #include "structure/namespace/namespace.h"
 #include "structure/session/session_table.h"
+#include "hooks/network_layer/ipv4/ip_local_deliver/ip_local_deliver.h"
+#include "hooks/network_layer/ipv4/ip_send_check/ip_send_check.h"
+#include <net/inet_ecn.h>
+#include <linux/inetdevice.h>
 
 int opt_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type *pt, struct net_device* orig_dev){
     // 1. 初始化变量
+    int process_result;
     struct net* current_ns = dev_net(dev);
     struct OptHeader* opt_header = opt_hdr(skb);
     struct PathValidationStructure* pvs = get_pvs_from_ns(current_ns);
     // 2. 进行初级的校验
     skb = opt_rcv_validate(skb, current_ns);
-    // 3. 进行不同的数据包的处理
+    if (NULL == skb){
+        LOG_WITH_PREFIX("skb == NULL");
+        return 0;
+    }
+    // 3. 进行数据包的打印
+    PRINT_OPT_HEADER(opt_header);
+    // 4. 进行不同的数据包的处理
     if(OPT_ESTABLISH_VERSION_NUMBER == opt_header->version){
-        opt_forward_establish_packets(skb, pvs, current_ns, orig_dev);
+        process_result = opt_forward_session_establish_packets(skb, pvs, current_ns, orig_dev);
     } else if(OPT_DATA_VERSION_NUMBER == opt_header->version){
-        opt_forward_data_packets(skb, pvs, current_ns, orig_dev);
+        process_result = opt_forward_data_packets(skb, pvs, current_ns, orig_dev);
     } else {
         LOG_WITH_PREFIX("unsupported opt packet type");
         kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
         return 0;
     }
-    // 3. 进行数据包的打印
-    PRINT_OPT_HEADER(opt_header);
-    // 进行数据包的释放
-    kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
-    return 0;
+    // 5. 进行数据包本地的处理
+    if(NET_RX_SUCCESS == process_result) {
+        LOG_WITH_PREFIX("local deliver");
+        __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
+        pv_local_deliver(skb, opt_header->protocol,receive_interface_address);
+        return 0;
+    } else if(NET_RX_DROP == process_result){
+        LOG_WITH_PREFIX("packet drop");
+        kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
+        return 0;
+    } else {
+        // do nothing
+        return 0;
+    }
 }
 
-int opt_forward_establish_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
+int opt_forward_session_establish_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
     // 索引
     int index;
     // 拿到头部
     struct OptHeader* opt_header = opt_hdr(skb);
     // 拿到 path_length
-    int path_length = *((__u16*)get_opt_path_length_start_pointer(opt_header));
+    int path_length = *((__u16*) get_first_opt_path_length_start_pointer(opt_header));
     // 进行路径的解析
-    struct OptHop* path = (struct OptHop*)(get_opt_path_start_pointer(opt_header));
+    struct OptHop* path = (struct OptHop*)(get_first_opt_path_start_pointer(opt_header));
     // 拿到 session_id
     struct SessionID* session_id = (struct SessionID*)(get_first_opt_session_id_pointer(opt_header));
+    printk(KERN_EMERG "rcv session_id: %llu, %llu", session_id->first_part, session_id->second_part);
     // 拿到当前的索引
     int current_path_index = opt_header->current_path_index;
     // 拿到接口表
     struct ArrayBasedInterfaceTable* abit = pvs->abit;
+    // 拿到会话表
+    struct HashBasedSessionTable* hbst = pvs->hbst;
+    // 当前节点id
+    int current_node_id = pvs->node_id;
+    // 目的节点
+    int destination = opt_header->dest;
     // 拿到当前的 link_identifier
     int current_link_identifier = path[current_path_index].link_id;
-    // output interface
-    struct net_device* output_interface = NULL;
-    // 进行转发方向的决定
-    for(index = 0; index < abit->number_of_interfaces; index++){
-        struct InterfaceTableEntry* ite = abit->interfaces[index];
-        // 不能向入口回传
-        if(in_dev->ifindex == ite->interface->ifindex){
-            continue;
-        } else {
+    // 如果当前节点 id == 目的节点
+    if(current_node_id == destination) {
+        // 路径长度
+        int encrypt_count = path_length;
+        // 创建会话表项
+        struct SessionTableEntry* ste = init_ste_in_dest(session_id, encrypt_count);
+        int count = 0;
+        for(index = current_path_index; index >= 0 ; index--){ // 填充加密顺序
+            ste->encrypt_order[count] = path[current_path_index].node_id;
+            count+=1;
+        }
+        // 将路径添加到 hbst 之中
+        add_entry_to_hbst(hbst, ste);
+        // 不需要将这个包传输到上层了
+        return NET_RX_DROP;
+    } else {
+        // 等待被填充的出接口
+        struct net_device* output_interface = NULL;
+        // 进行转发方向的决定
+        for(index = 0; index < abit->number_of_interfaces; index++){
+            struct InterfaceTableEntry* ite = abit->interfaces[index];
             if(current_link_identifier == ite->link_identifier){
                 output_interface = ite->interface;
                 break;
             }
         }
+        // 创建会话表项目
+        struct SessionTableEntry* ste = init_ste_in_intermediate(session_id, output_interface);
+        // 将会话表项添加到 hbst 之中
+        add_entry_to_hbst(hbst, ste);
+        // 进行 current_path_index 的更新
+        opt_header->current_path_index += 1;
+        // 在更新完了 current_path_index 之后一定需要进行 check 的更新
+        opt_send_check(opt_header);
+        // 进行数据包的转发
+        if(NULL != output_interface){
+            pv_packet_forward(skb, output_interface, current_ns);
+        }
+        return NET_RX_NOTHING;
     }
-    // 构建上游节点
-    int upstream_nodes_count = current_path_index + 1; // +1 means source
-    for(index)
-
-
-    // 将路径添加到 hbst 之中
-    // --------------------------------------------------------------------------
-    struct HashBasedSessionTable* hbst = pvs->hbst;
-    struct SessionTableEntry* ste = init_ste_in_dest(session_id,)
-    add_entry_to_hbst(hbst, ste);
-    // --------------------------------------------------------------------------
 }
 
 
 int opt_forward_data_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
-
+    return 0;
 }
 
 struct sk_buff* opt_rcv_validate(struct sk_buff* skb, struct net* net){

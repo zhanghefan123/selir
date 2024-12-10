@@ -34,6 +34,6 @@ unsigned char* calculate_hash(struct shash_desc* hash_api, unsigned char* data, 
 unsigned char* calculate_hash_from_multiple_segments(struct shash_desc* hash_api, unsigned char** data, int* lengths, int segments);
 
 // 进行 hmac 计算
-unsigned char* calculate_hmac(struct shash_desc* hmac_api, unsigned char* data, int length, char* key);
+unsigned char* calculate_hmac(struct shash_desc* hmac_api, unsigned char* data, int data_length, unsigned char* key, int key_length);
 
 #endif //LOADABLE_KERNEL_MODULE_CRYPTO_FUNCTION_H
