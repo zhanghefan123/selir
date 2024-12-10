@@ -33,7 +33,7 @@ void PRINT_OPT_HEADER(struct OptHeader* opt_header){
             printk(KERN_EMERG "node_id: %d, link_identifier: %d\n", hops[index].node_id, hops[index].link_id);
         }
     } else if(OPT_DATA_VERSION_NUMBER == opt_header->version){
-        LOG_WITH_PREFIX("current not support opt data");
+        LOG_WITH_PREFIX("current not support opt data"); // not option data
     } else {
         LOG_WITH_PREFIX("unsupported opt header");
     }

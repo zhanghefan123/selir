@@ -8,6 +8,8 @@ __u16 get_source_from_skb(struct sk_buff* skb){
         return lir_hdr(skb)->source;
     } else if(ICING_VERSION_NUMBER == version){
         return icing_hdr(skb)->source;
+    } else if(OPT_DATA_VERSION_NUMBER == version){
+        return opt_hdr(skb)->source;
     } else {
         LOG_WITH_PREFIX("unsupported version");
         return 0;

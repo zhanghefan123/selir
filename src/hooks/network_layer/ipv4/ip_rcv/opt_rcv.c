@@ -124,10 +124,18 @@ int opt_forward_data_packets(struct sk_buff* skb, struct PathValidationStructure
     struct SessionID* session_id = (struct SessionID*)get_other_opt_session_id_start_pointer(opt_header);
     // 进行相应的表项的查找
     struct SessionTableEntry* ste = find_ste_in_hbst(pvs->hbst, session_id);
+    // 进行相应的 verification 和 update
+    // ----------------------------------------
+    /*
+     * 待填充
+     */
+    // ----------------------------------------
+    // 进行校验和的更新
+    opt_send_check(opt_header);
     // 进行相应的转发
     if(NULL != ste){
         struct sk_buff* skb_copied = skb_copy(skb, GFP_KERNEL);
-        // 无序更新 current_index 直接转发即可
+        // 无需更新 current_index 直接转发即
         pv_packet_forward(skb_copied, ste->output_interface, current_ns);
     } else {
         LOG_WITH_PREFIX("cannot find ste, not forward");

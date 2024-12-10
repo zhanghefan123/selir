@@ -19,7 +19,8 @@ static int get_opt_header_size(struct RoutingCalcRes *rcr, bool sent_first_packe
     struct RoutingTableEntry *rte = rcr->rtes[0];
     int path_length = rte->path_length;
     if (!sent_first_packet) {
-        return sizeof(struct OptHeader) + sizeof(struct SessionID) + sizeof(struct PathLength) + path_length * sizeof(struct OptHop);
+        return sizeof(struct OptHeader) + sizeof(struct SessionID) + sizeof(struct PathLength) +
+               path_length * sizeof(struct OptHop);
     } else {
         return sizeof(struct OptHeader) +
                sizeof(struct DataHash) +
@@ -79,100 +80,151 @@ fill_establish_packet_fields(struct OptHeader *opt_header, struct RoutingTableEn
 }
 
 /**
- * 填充后续包的头部
+ * 进行 data_hash, session_id 以及 timestamp 的填充
+ * @param opt_header opt 首部
+ * @param static_fields_hash 静态字段的哈希
+ * @param session_id 会话 id
+ * @param timestamp 时间戳
  */
-static void fill_data_packet_fields(struct OptHeader *opt_header,
-                                    struct RoutingTableEntry *rte,
-                                    struct SessionID session_id,
-                                    struct PathValidationStructure *pvs,
-                                    struct PathValidationSockStructure *pvss) {
-    // 索引
-    int index;
-    // 拿到 hash_api 和 hmac_api
-    struct shash_desc *hash_api = pvs->hash_api;
-    struct shash_desc *hmac_api = pvs->hmac_api;
-    // 首先计算哈希
-    unsigned char *static_fields_hash = calculate_opt_hash(hash_api, opt_header);
-    // 为 [1] data hash [2] session_id [3] timestamp 进行赋值
+static void fill_meta_data(struct OptHeader *opt_header, unsigned char *static_fields_hash, struct SessionID session_id,
+                           time64_t timestamp) {
     unsigned char *hash_start_pointer = get_other_opt_hash_start_pointer(opt_header);
     unsigned char *session_id_start_pointer = get_other_opt_session_id_start_pointer(opt_header);
     unsigned char *timestamp_start_pointer = get_other_opt_timestamp_start_pointer(opt_header);
     memcpy(hash_start_pointer, static_fields_hash, HASH_LENGTH);
     memcpy(session_id_start_pointer, &session_id, sizeof(struct SessionID));
-    memcpy(timestamp_start_pointer, &(pvss->timestamp), sizeof(time64_t));
-    // 首先拿到 pvf 的位置, 并且初始化 pvf
-    // --------------------------------------------------------------------------------------------------------------------------
-    // 计算 MAC[kd](DATA_HASH)
-    int path_length = rte->path_length;
-    unsigned char *pvf_start_pointer = get_other_opt_pvf_start_pointer(opt_header);
+    memcpy(timestamp_start_pointer, &(timestamp), sizeof(time64_t));
+}
+
+/**
+ * 进行 pvf 字段的填充
+ * @param hmac_api hmac api
+ * @param pvf_start_pointer pvf 起始指针
+ * @param static_fields_hash 静态字段哈希
+ * @param dest_session_key 目的节点的会话密钥
+ * @return 计算好的 pvf0
+ */
+static unsigned char *initialize_pvf(struct shash_desc *hmac_api,
+                                     unsigned char *pvf_start_pointer,
+                                     unsigned char *static_fields_hash,
+                                     char *dest_session_key) {
     unsigned char *pvf_hmac_result = calculate_hmac(hmac_api,
                                                     static_fields_hash,
                                                     HASH_OUTPUT_LENGTH,
-                                                    (unsigned char *) pvss->keys[path_length - 1],
-                                                    (int) (strlen(pvss->keys[path_length - 1])));
+                                                    (unsigned char *) (dest_session_key),
+                                                    (int) (strlen(dest_session_key)));
     memcpy(pvf_start_pointer, pvf_hmac_result, PVF_LENGTH);
-    // --------------------------------------------------------------------------------------------------------------------------
+    return pvf_hmac_result;
+}
 
-    // 初始化 opvs
-    // 计算流程: A->B->C
-    // 首先计算 PVF0 = MACKC(H)
-    // 然后计算 OPV1 = MACKB(PVF0 || DATAHASH || Source = A || TimeStamp)
-    // 然后计算 PVF1 = MACKB(MACKC(H))
-    // 然后计算 OPV2 = MACKC(PVF1 || DATAHASH || B || TimeStamp)
-    // --------------------------------------------------------------------------------------------------------------------------
-    struct OptOpv *opt_opvs = (struct OptOpv*)(get_other_opt_opv_start_pointer(opt_header));
+
+/**
+ *
+   初始化 opvs
+   计算流程: A->B->C
+   首先计算 PVF0 = MACKC(H)
+   然后计算 OPV1 = MACKB(PVF0 || DATAHASH || Source = A || TimeStamp)
+   然后计算 PVF1 = MACKB(MACKC(H))
+   然后计算 OPV2 = MACKC(PVF1 || DATAHASH || B || TimeStamp)
+ * 进行 opvs 的初始化
+ * @param hmac_api hmac_api
+ * @param opvs opvs
+ * @param pvf_hmac_result pvf_hmac 结果
+ * @param static_fields_hash 静态字段哈希
+ * @param rte 路由表项
+ * @param pvss 存储会话信息的结构体
+ * @return
+ */
+static void initialize_opvs(struct shash_desc *hmac_api,
+                            struct OptOpv *opvs,
+                            unsigned char *pvf_hmac_result,
+                            unsigned char *static_fields_hash,
+                            struct RoutingTableEntry *rte,
+                            struct PathValidationSockStructure *pvss) {
+    // 1.索引
+    int index;
+    // 2.opv
     unsigned char *opv_i = NULL;
+    // 3. 循环产生 opv_i
     for (index = 0; index < rte->path_length; index++) {
-        // 在计算 opv_i 之前计算 combination
-        // ------------------------------------------------------------------------------------------------
+        // 3.1 计算 combination
         unsigned char combination[100];
-        memcpy(combination, pvf_hmac_result, PVF_LENGTH);
-        memcpy(combination + PVF_LENGTH, static_fields_hash, HASH_LENGTH);
-        if(index == 0 ){
-            memcpy(combination + PVF_LENGTH + HASH_LENGTH, &(rte->source_id), sizeof(int));
+        // 3.1.1 拼接前一个 pvf
+        memcpy(combination, pvf_hmac_result, PVF_LENGTH); // 从 20 字节之中的 PVF 拷贝 16 字节
+        // 3.1.2 拼接 data_hash
+        memcpy(combination + PVF_LENGTH, static_fields_hash, HASH_LENGTH); // 从 20 字节之中的 HASH 之中拷贝 16 字节
+        // 3.1.3 拼接前驱节点
+        if (index == 0) {
+            // 拼接源
+            *((int *) (combination + PVF_LENGTH + HASH_LENGTH)) = rte->source_id;
         } else {
-            memcpy(combination + PVF_LENGTH + HASH_LENGTH, &(rte->node_ids[index]), sizeof(int));
+            // 拼接前驱
+            *((int *) (combination + PVF_LENGTH + HASH_LENGTH)) = rte->node_ids[index - 1];
         }
-        memcpy(combination + PVF_LENGTH + HASH_LENGTH + sizeof(int), &session_id, sizeof(struct SessionID));
-        // ------------------------------------------------------------------------------------------------
+        // 3.1.4 拼接 timestamp
+        *((time64_t *) (combination + PVF_LENGTH + HASH_LENGTH + sizeof(int))) = pvss->timestamp;
 
-        // 进行 opv_i 的计算, 并拷贝到相应的位置
-        // ------------------------------------------------------------------------------------------------
+        // 3.2 拿到中间节点的 key
+        char *intermediate_session_key = pvss->keys[index];
+
+        // 3.2 进行 opv_i 的计算, 并拷贝到相应的位置
         opv_i = calculate_hmac(hmac_api,
                                combination,
-                               PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(struct SessionID),
-                               (unsigned char *) (pvss->keys[index]),
-                               (int) strlen(pvss->keys[index]));
-        // 进行拷贝
-        memcpy(&(opt_opvs[index]), opv_i, OPV_LENGTH);
-        // 拷贝完成之后进行释放
+                               PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t),
+                               (unsigned char *) (intermediate_session_key),
+                               (int) strlen(intermediate_session_key));
+        // 3.3 拷贝到指定的位置处
+        memcpy(&(opvs[index]), opv_i, OPV_LENGTH);
+
+        // 3.4 拷贝完成之后进行释放
         kfree(opv_i);
-        // ------------------------------------------------------------------------------------------------
 
-
-        // 计算完了 opv_i 之后将 opv_i 复制到置顶的位置处
-        // ------------------------------------------------------------------------------------------------
-        if(index == rte->path_length - 1) {
+        // 3.5 如果已经到了最后一个 opv, 其后续没有 pvf 需要计算了
+        if (index == rte->path_length - 1) {
             kfree(pvf_hmac_result);
             break;
         } else {
-            // 通过 pvf[i-1] 计算 pvf[i]
+            // 3.6 如果还没有到最后一个 opv, 还需要ji
             unsigned char *tmp = calculate_hmac(hmac_api,
                                                 pvf_hmac_result,
                                                 PVF_LENGTH,
-                                                (unsigned char *) (pvss->keys[index]),
-                                                (int) strlen(pvss->keys[index]));
-
-            // 进行旧的 pvf 的释放
+                                                (unsigned char *) (intermediate_session_key),
+                                                (int) strlen(intermediate_session_key));
+            // 进行 hmac 的释放
             kfree(pvf_hmac_result);
 
-            // 将新的 pvf 赋值给 pvf_hmac_result
+            // 将刚创建的 hmac 进行赋值
             pvf_hmac_result = tmp;
         }
-        // ------------------------------------------------------------------------------------------------
     }
-    // --------------------------------------------------------------------------------------------------------------------------
+    // 4. 进行 hash 以及 hmac 的释放
+    kfree(static_fields_hash);
+    kfree(pvf_hmac_result);
+}
 
+/**
+ * 填充后续包的头部
+ */
+static void fill_data_packet_fields(struct OptHeader *opt_header,
+                                    struct RoutingTableEntry *rte,
+                                    struct PathValidationStructure *pvs,
+                                    struct PathValidationSockStructure *pvss) {
+    // 1. 拿到 hash_api 和 hmac_api
+    struct shash_desc *hash_api = pvs->hash_api;
+    struct shash_desc *hmac_api = pvs->hmac_api;
+    // 2. 首先计算哈希
+    unsigned char *static_fields_hash = calculate_opt_hash(hash_api, opt_header);
+    // 3. 为 [1] data hash [2] session_id [3] timestamp 进行赋值
+    fill_meta_data(opt_header, static_fields_hash, pvss->session_id, pvss->timestamp);
+    // 4. 初始化 pvf 即 pvf0
+    int path_length = rte->path_length;
+    unsigned char *pvf_start_pointer = get_other_opt_pvf_start_pointer(opt_header);
+    char *dest_session_key = pvss->keys[path_length - 1];
+    unsigned char *pvf_hmac_result = initialize_pvf(hmac_api, pvf_start_pointer, static_fields_hash, dest_session_key);
+    // 5. 初始化 opv
+    struct OptOpv *opt_opvs = (struct OptOpv *) (get_other_opt_opv_start_pointer(opt_header));
+    initialize_opvs(hmac_api, opt_opvs, pvf_hmac_result,
+                    static_fields_hash, rte, pvss);
 }
 
 /**
@@ -345,7 +397,7 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     } else { // 2. 如果已经发送第一个包
         // 拿到 path_validation_sock_structure
         struct PathValidationSockStructure *pvss = (struct PathValidationSockStructure *) (sk->path_validation_sock_structure);
-        fill_data_packet_fields(opt_header, rcr->rtes[0], session_id, pvs, pvss);
+        fill_data_packet_fields(opt_header, rcr->rtes[0], pvs, pvss);
     }
     // ---------------------------------------------------------------------------------------
 
