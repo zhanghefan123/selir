@@ -49,6 +49,8 @@ struct hlist_head *get_bucket_in_hbst(struct HashBasedSessionTable *hbst, struct
 int session_entry_equal_judgement(struct SessionTableEntry *entry, struct SessionID session_id);
 
 int add_entry_to_hbst(struct HashBasedSessionTable *hbst, struct SessionTableEntry *ste);
+
+struct SessionTableEntry* find_ste_in_hbst(struct HashBasedSessionTable* hbst, struct SessionID* session_id);
 // -------------------------------------------------------
 
 

@@ -168,3 +168,27 @@ int add_entry_to_hbst(struct HashBasedSessionTable* hbst, struct SessionTableEnt
     hlist_add_head(&ste->pointer, hash_bucket);
     return 0;
 }
+
+
+/**
+ * 在 hash based session table 之中找到 session_id 对应的表项
+ * @param hbst 基于哈希的会话表
+ * @param session_id session_id 对应的表项
+ * @return
+ */
+struct SessionTableEntry* find_ste_in_hbst(struct HashBasedSessionTable* hbst, struct SessionID* session_id){
+    struct hlist_head *hash_bucket = NULL;
+    struct SessionTableEntry *current_entry;
+    struct hlist_node *next;
+    hash_bucket = get_bucket_in_hbst(hbst, *session_id);
+    if (NULL == hash_bucket) {
+        LOG_WITH_PREFIX("cannot find entry because cannot find hash bucket");
+        return NULL;
+    }
+    hlist_for_each_entry_safe(current_entry, next, hash_bucket, pointer) {
+        if (0 == session_entry_equal_judgement(current_entry, *session_id)) {
+            return current_entry;
+        }
+    }
+    return NULL;
+}

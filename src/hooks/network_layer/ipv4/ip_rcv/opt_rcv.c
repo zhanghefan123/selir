@@ -116,7 +116,31 @@ int opt_forward_session_establish_packets(struct sk_buff* skb, struct PathValida
 
 
 int opt_forward_data_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
-    return 0;
+    // 是否本地提交
+    bool local_deliver;
+    // 找到 opt_header
+    struct OptHeader* opt_header = opt_hdr(skb);
+    // 找到 session_id
+    struct SessionID* session_id = (struct SessionID*)get_other_opt_session_id_start_pointer(opt_header);
+    // 进行相应的表项的查找
+    struct SessionTableEntry* ste = find_ste_in_hbst(pvs->hbst, session_id);
+    // 进行相应的转发
+    if(NULL != ste){
+        struct sk_buff* skb_copied = skb_copy(skb, GFP_KERNEL);
+        // 无序更新 current_index 直接转发即可
+        pv_packet_forward(skb_copied, ste->output_interface, current_ns);
+    } else {
+        LOG_WITH_PREFIX("cannot find ste, not forward");
+    }
+    // 当前节点
+    int current_node_id = pvs->node_id;
+    // 判断是否到达了目的节点
+    local_deliver = (current_node_id == opt_header->dest);
+    if (local_deliver){
+        return NET_RX_SUCCESS;
+    } else {
+        return NET_RX_DROP;
+    }
 }
 
 struct sk_buff* opt_rcv_validate(struct sk_buff* skb, struct net* net){
