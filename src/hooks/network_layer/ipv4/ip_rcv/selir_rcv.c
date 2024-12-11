@@ -172,6 +172,9 @@ int selir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* p
     unsigned char* selir_dest_pointer = get_selir_dest_start_pointer(selir_header, selir_header->ppf_len);
     unsigned char* original_bitset = pvs->bloom_filter->bitset;
     pvs->bloom_filter->bitset = ppf_start_pointer;
+    // 打印这边收到的 bitset
+    printk(KERN_EMERG "rcv bitset: \n");
+    print_memory_in_hex(pvs->bloom_filter->bitset, pvs->bloom_filter->bf_effective_bytes);
 
     // 2. 判断是否需要进行本地的交付
     for(index = 0; index < selir_header->dest_len; index++){
@@ -191,38 +194,38 @@ int selir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* p
                                                 HASH_OUTPUT_LENGTH,
                                                 (unsigned char*)symmetric_key,
                                                 (int)strlen(symmetric_key));
-
     // 3. 将 pvf (保持和 opt 相同 16 字节) 和 hmac 进行异或的操作
     int temp;
     for(temp = 0; temp < 2; temp++){
-        (*((u64*)pvf_start_pointer + temp)) = (*((u64*)hmac_result + temp)) ^ (*((u64*)(pvf_start_pointer) + temp));
+        *((u64*)pvf_start_pointer + temp) = *((u64*)hmac_result + temp) ^ *((u64*)(pvf_start_pointer) + temp);
     }
 
-    // 4. 进行 hmac_result 的释放
-    kfree(hmac_result);
-
-    // 5. 进行接口表的遍历
+    // 4. 进行接口表的遍历
     for(index = 0; index < abit->number_of_interfaces; index++){
         struct InterfaceTableEntry* ite = abit->interfaces[index];
         int link_identifier = ite->link_identifier;
         // 进行异或
         (*(int*)(pvf_start_pointer)) = (*(int*)(pvf_start_pointer)) ^ link_identifier;
         // 判断是否在其中
-        if(0 == check_element_in_bloom_filter(pvs->bloom_filter, hmac_result, 16)){
+        if(0 == check_element_in_bloom_filter(pvs->bloom_filter, pvf_start_pointer, 16)){
             // 进行校验和的重新计算
             selir_send_check(selir_header);
             // 进行数据包的拷贝
             struct sk_buff* copied_skb = skb_copy(skb, GFP_KERNEL);
             // 进行数据包的转发
             pv_packet_forward(copied_skb, ite->interface, current_ns);
+            // 打印转发了数据包
+            LOG_WITH_PREFIX("forward packet");
+        } else {
+            LOG_WITH_PREFIX("not forward packet");
         }
         // 再次进行异或就还原了
         (*(int*)(pvf_start_pointer)) = (*(int*)(pvf_start_pointer)) ^ link_identifier;
     }
 
-    // 6. 最后进行哈希和 hmac 的释放
-    kfree(static_fields_hash);
+    // 5. 最后进行哈希和 hmac 的释放
     kfree(hmac_result);
+    kfree(static_fields_hash);
     pvs->bloom_filter->bitset = original_bitset;
 
     return result;

@@ -90,11 +90,12 @@ static void fill_ppf_fields(struct SELiRHeader *selir_header,
     int current_node_id = pvs->node_id;
     // 进行所有的路由条目的遍历 (现在还是只能支持一个 destination)
     unsigned char final_insert_element[16];
+    memset(final_insert_element, 0, sizeof(final_insert_element));
     for (index = 0; index < rcr->number_of_routes; index++) {
         // 拿到路由条目 -> 如果是第一条则对应的是 source->primary
         struct RoutingTableEntry *rte = rcr->rtes[index];
         for (inner_index = 0; inner_index < rte->path_length; inner_index++) {
-            int intermediate_node = rte->node_ids[index]; // 拿到中间节点
+            int intermediate_node = rte->node_ids[inner_index]; // 拿到中间节点
             snprintf(symmetric_key, sizeof(symmetric_key), "key-%d-%d", current_node_id, intermediate_node); // 对称密钥
             unsigned char *hmac_result = calculate_hmac(pvs->hmac_api,
                                                         static_fields_hash,
@@ -104,25 +105,29 @@ static void fill_ppf_fields(struct SELiRHeader *selir_header,
 
             // 进行和 hmac 的异或
             int temp;
-            for (temp = 0; temp < 4; temp++) {
-                (*((u32 *) final_insert_element + temp)) =
-                        (*((u32 *) final_insert_element + temp)) ^ (*((u32 *) (hmac_result) + temp));
+            for (temp = 0; temp < 2; temp++) {
+                (*((u64 *) final_insert_element + temp)) = (*((u64 *) final_insert_element + temp)) ^ (*((u64 *) (hmac_result) + temp));
             }
 
             // 进行和链路标识的异或
-            if (index != rte->path_length - 1) {
-                int link_identifier = rte->link_identifiers[index];
-                (*(int *) (final_insert_element)) = (*(int *) (final_insert_element)) ^ link_identifier;
+            if (inner_index != (rte->path_length - 1)) {
+                int link_identifier = rte->link_identifiers[inner_index + 1];
+                printk(KERN_EMERG "xor link identifier = %d", link_identifier);
+                *((int *) (final_insert_element)) = *((int *) (final_insert_element)) ^ link_identifier;
             }
 
             // 将 hmac_result 插入到 bf 之中
-            push_element_into_bloom_filter(pvs->bloom_filter, final_insert_element, HMAC_OUTPUT_LENGTH);
+            push_element_into_bloom_filter(pvs->bloom_filter, final_insert_element, 16);
+
             // 进行 hmac_result 的释放
             kfree(hmac_result);
         }
     }
     // 将 bf 复制到 ppf 的位置
-    memcpy(ppf_start_pointer, pvs->bloom_filter, pvs->bloom_filter->bf_effective_bytes);
+    memcpy(ppf_start_pointer, pvs->bloom_filter->bitset, pvs->bloom_filter->bf_effective_bytes);
+    // 打印
+    printk(KERN_EMERG "send bitset: \n");
+    print_memory_in_hex(ppf_start_pointer, pvs->bloom_filter->bf_effective_bytes);
     // 进行 bf 的重置
     reset_bloom_filter(pvs->bloom_filter);
     // 在最后进行静态哈希的释放
@@ -215,6 +220,11 @@ struct sk_buff *self_defined__selir_make_skb(struct sock *sk, struct flowi4 *fl4
     // ---------------------------------------------------------------------------------------
     fill_ppf_fields(selir_header, rcr, pvs);
     // ---------------------------------------------------------------------------------------
+
+//    unsigned char* pvf_start_pointer = get_selir_pvf_start_pointer(selir_header);
+//    unsigned char* ppf_start_pointer = get_selir_ppf_start_pointer(selir_header);
+//    print_memory_in_hex(pvf_start_pointer, sizeof(struct SELiRPvf));
+//    print_memory_in_hex(ppf_start_pointer, selir_header->ppf_len);
 
     // 填充目的字段
     // ---------------------------------------------------------------------------------------

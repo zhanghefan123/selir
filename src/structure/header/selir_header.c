@@ -18,6 +18,10 @@ void PRINT_SELIR_HEADER(struct SELiRHeader* seh){
     printk(KERN_EMERG "tot_len: %d\n", ntohs(seh->tot_len));
     printk(KERN_EMERG "ppf_len: %d\n", seh->ppf_len);
     printk(KERN_EMERG "dest_len: %d\n", seh->dest_len);
+//    unsigned char* pvf_start_pointer = get_selir_pvf_start_pointer(seh);
+//    unsigned char* ppf_start_pointer = get_selir_ppf_start_pointer(seh);
+//    print_memory_in_hex(pvf_start_pointer, sizeof(struct SELiRPvf));
+//    print_memory_in_hex(ppf_start_pointer, seh->ppf_len);
     LOG_WITH_EDGE("selir header");
 }
 
