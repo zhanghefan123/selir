@@ -75,7 +75,7 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     // 4. 选项
     struct ip_options_rcu *option;
     // 5. 由选项解析的目的地
-    struct DestinationAndProtocolInfo *dest_and_proto_info;
+    struct UserSpaceInfo *dest_and_proto_info;
     // 6. 源节点
     int source;
     // 7. 变量赋值
@@ -83,6 +83,10 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     pvs = get_pvs_from_ns(current_ns);
     option = inet->inet_opt;
     dest_and_proto_info = resolve_opt_for_dest_and_proto_info(option);
+    if(NULL == dest_and_proto_info){
+        kfree_skb(skb);
+        return 0;
+    }
     source = pvs->node_id;
     // -----------------------------------------------------
 
@@ -288,6 +292,9 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
             skb = self_defined_selir_make_skb(sk, fl4, getfrag, msg, ulen,
                                               sizeof(struct udphdr), &ipc,
                                               &cork, msg->msg_flags, rcr);
+            if(NULL != rcr->output_interface){
+                printk(KERN_EMERG "output interface name: %s \n", rcr->output_interface->name);
+            }
         } else {
             LOG_WITH_PREFIX("unsupported protocol");
             return -EINVAL;
@@ -314,7 +321,7 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
         kfree(ipc.opt);
     if (!err) {
         free_rcr(rcr);
-        free_destination_info(dest_and_proto_info);
+        free_user_space_info(dest_and_proto_info);
         return (int) len;
     }
 

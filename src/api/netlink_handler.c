@@ -196,6 +196,71 @@ int netlink_init_routing_and_forwarding_table_handler(struct sk_buff *request, s
     // -----------------------------------------------------------------
 }
 
+
+/**
+ * 初始化 selir 数据结构
+ * @param request
+ * @param info
+ * @return
+ */
+int netlink_init_selir(struct sk_buff *request, struct genl_info *info) {
+    // 1. 变量的定义
+    // -----------------------------------------------------------------
+    char *receive_buffer;               // 接收缓存 - 用来缓存用户空间下发的数据
+    char response_buffer[1024];         // 响应消息缓存
+    const char *delimiter = ",";        // 分隔符
+    int count = 0;                      // 表示当前是第几个属性
+    struct net *current_ns = sock_net(request->sk);
+    // -----------------------------------------------------------------
+
+    // 2. 参数的定义
+    // -----------------------------------------------------------------
+    int pvf_effective_bits; // 单位为 bit (实际的使用的位数)
+    // -----------------------------------------------------------------
+
+    // 3. 准备进行消息的处理
+    // -----------------------------------------------------------------
+    // 消息格式: pvf_effective_bits
+    // 3.1 读取参数
+    receive_buffer = recv_message(info);
+    while (true) {
+        // 分割出来的字符串
+        char *variable_in_str = strsep(&receive_buffer, delimiter);
+        // 如果为空就进行 break
+        if (variable_in_str == NULL || (0 == strcmp(variable_in_str, ""))) {
+            break;
+        } else {
+            int variable_in_integer = (int) (simple_strtol(variable_in_str, NULL, 10));
+            if (count == 0) {
+                pvf_effective_bits = variable_in_integer;
+            } else {
+                return -EINVAL;
+            }
+        }
+        count += 1;
+    }
+    // 3.2 拿到 pvs
+    struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
+    if (NULL == pvs) {
+        return -EINVAL;
+    }
+
+    // 3.3 设置 pvs 之中的 selir_info
+    pvs->selir_info->pvf_effective_bits = pvf_effective_bits;
+    pvs->selir_info->pvf_effective_bytes = (pvf_effective_bits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+
+    // -----------------------------------------------------------------
+
+    // 4. 准备进行消息的返回
+    // -----------------------------------------------------------------
+    snprintf(response_buffer, sizeof(response_buffer),
+             "selir pvf_effective_bits: %d, pvf_effective_bytes: %d",
+             pvs->selir_info->pvf_effective_bits,
+             pvs->selir_info->pvf_effective_bytes);
+    return send_reply(response_buffer, info);
+    // -----------------------------------------------------------------
+}
+
 /**
  * 处理初始化命令
  * @param request
@@ -214,14 +279,14 @@ int netlink_init_bloom_filter_handler(struct sk_buff *request, struct genl_info 
 
     // 2. 参数的定义
     // -----------------------------------------------------------------
-    int effective_bits; // 单位为 bit (实际的使用的位数)
+    int bf_effective_bits; // 单位为 bit (实际的使用的位数)
     int hash_seed; // 哈希种子
     int number_of_hash_functions; // 哈希函数的个数
     // -----------------------------------------------------------------
 
     // 3. 准备进行消息的处理
     // -----------------------------------------------------------------
-    // 消息格式: effective_bits, hash_seed, number_of_hash_functions
+    // 消息格式: bf_effective_bits (在 LiR 之中就是 bf 所占的 bit 数量), pvf_effective_bytes (仅在 selir 之中有效), hash_seed, number_of_hash_functions
     // 3.1 读取参数
     receive_buffer = recv_message(info);
     while (true) {
@@ -233,7 +298,7 @@ int netlink_init_bloom_filter_handler(struct sk_buff *request, struct genl_info 
         } else {
             int variable_in_integer = (int) (simple_strtol(variable_in_str, NULL, 10));
             if (count == 0) {
-                effective_bits = variable_in_integer;
+                bf_effective_bits = variable_in_integer;
             } else if (count == 1) {
                 hash_seed = variable_in_integer;
             } else if (count == 2) {
@@ -245,7 +310,7 @@ int netlink_init_bloom_filter_handler(struct sk_buff *request, struct genl_info 
         count += 1;
     }
     // 3.2 创建 bloom filter
-    struct BloomFilter *bloom_filter = init_bloom_filter(effective_bits,
+    struct BloomFilter *bloom_filter = init_bloom_filter(bf_effective_bits,
                                                          hash_seed,
                                                          number_of_hash_functions);
     // 3.3 设置到 namespace 之中
@@ -261,7 +326,7 @@ int netlink_init_bloom_filter_handler(struct sk_buff *request, struct genl_info 
     // -----------------------------------------------------------------
     snprintf(response_buffer, sizeof(response_buffer),
              "effective_bits: %d, hash_seed: %d, number_of_hash_functions: %d",
-             effective_bits, hash_seed, number_of_hash_functions);
+             bf_effective_bits, hash_seed, number_of_hash_functions);
     return send_reply(response_buffer, info);
     // -----------------------------------------------------------------
 }
@@ -282,7 +347,7 @@ int netlink_insert_routing_table_entry_handler(struct sk_buff *request, struct g
     struct net *current_ns = sock_net(request->sk);
     struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
     struct BloomFilter *bf = pvs->bloom_filter;
-    struct RoutingTableEntry *rte = init_routing_table_entry((int) (bf->effective_bytes));
+    struct RoutingTableEntry *rte = init_routing_table_entry((int) (bf->bf_effective_bytes));
     struct InterfaceTableEntry *first_interface = NULL;
     // -----------------------------------------------------------------
 
@@ -341,7 +406,7 @@ int netlink_insert_routing_table_entry_handler(struct sk_buff *request, struct g
         count += 1;
     }
     // 3.2 进行布隆过滤器的拷贝, 拷贝到相应的位置去
-    memcpy(rte->bitset, bf->bitset, sizeof(unsigned char) * bf->effective_bytes);
+    memcpy(rte->bitset, bf->bitset, sizeof(unsigned char) * bf->bf_effective_bytes);
     // 3.3 结束的时候进行布隆过滤器的重置
     reset_bloom_filter(bf);
     // 3.4 放到路由表之中
@@ -412,12 +477,12 @@ int netlink_insert_interface_table_entry_handler(struct sk_buff *request, struct
         count += 1;
     }
     // 3.2 创建接口表项
-    struct InterfaceTableEntry *ite = init_ite(index, (int) (pvs->bloom_filter->effective_bytes));
+    struct InterfaceTableEntry *ite = init_ite(index, (int) (pvs->bloom_filter->bf_effective_bytes));
     push_element_into_bloom_filter(pvs->bloom_filter, &link_identifier, sizeof(link_identifier));
     ite->link_identifier = link_identifier;
     ite->interface = dev_get_by_index(current_ns, ifindex);
     dev_put(ite->interface);
-    memcpy(ite->bitset, pvs->bloom_filter->bitset, pvs->bloom_filter->effective_bytes);
+    memcpy(ite->bitset, pvs->bloom_filter->bitset, pvs->bloom_filter->bf_effective_bytes);
     reset_bloom_filter(pvs->bloom_filter);
     // 3.3 将接口表项添加到接口表之中
     add_ite_to_abit(pvs->abit, ite);

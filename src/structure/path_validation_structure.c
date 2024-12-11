@@ -21,6 +21,7 @@ struct PathValidationStructure *init_pvs(void) {
     pvs->hbst = init_hbst(100); // 这里固定的 bucket 数量为 100
     pvs->hash_api = generate_hash_api();
     pvs->hmac_api = generate_hmac_api();
+    pvs->selir_info = init_selir_info();
     return pvs;
 }
 
@@ -41,6 +42,8 @@ void free_pvs(struct PathValidationStructure *pvs) {
         free_hbst(pvs->hbst);
 //        // 进行布隆过滤器的释放
         delete_bloom_filter(pvs->bloom_filter);
+          // 进行 selir 信息的释放
+        free_selir_info(pvs->selir_info);
 
 // ---------------- 一旦进行这两个数据结构的释放就会出错 ----------------
         // 进行哈希数据结构的释放

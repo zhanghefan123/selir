@@ -7,7 +7,7 @@
 
 #include "tools/tools.h"
 #include "structure/routing/routing_table_entry.h"
-#include "structure/routing/destination_info.h"
+#include "structure/routing/user_space_info.h"
 
 struct HashBasedRoutingTable {
     // 使用的桶的数量

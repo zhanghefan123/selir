@@ -13,8 +13,8 @@
 
 static int get_lir_header_size(struct RoutingCalcRes *rcr, struct PathValidationStructure *pvs) {
     return sizeof(struct LiRHeader) +
-           rcr->destination_info->number_of_destinations +
-           pvs->bloom_filter->effective_bytes;
+           rcr->user_space_info->number_of_destinations +
+           pvs->bloom_filter->bf_effective_bytes;
 }
 
 
@@ -138,23 +138,23 @@ struct sk_buff *self_defined__lir_make_skb(struct sock *sk,
     lir_header->source = rcr->source; // 设置源 (字段8)
     lir_header->hdr_len = get_lir_header_size(rcr, pvs); // 设置数据包总长度 (字段9)
     lir_header->tot_len = htons(skb->len); // tot_len 字段 10 (等待后面进行赋值)
-    lir_header->bf_len = (int) (pvs->bloom_filter->effective_bytes); // bf 有效字节数 (字段11)
-    lir_header->dest_len = (int) (rcr->destination_info->number_of_destinations); // 目的的长度 (字段12)
+    lir_header->bf_len = (int) (pvs->bloom_filter->bf_effective_bytes); // bf 有效字节数 (字段11)
+    lir_header->dest_len = (int) (rcr->user_space_info->number_of_destinations); // 目的的长度 (字段12)
     // ---------------------------------------------------------------------------------------
 
     // copy destinations
     // ---------------------------------------------------------------------------------------
     dest_pointer_start = (unsigned char *) lir_header + sizeof(struct LiRHeader);
-    int memory_of_destinations = rcr->destination_info->number_of_destinations;
-    memcpy(dest_pointer_start, rcr->destination_info->destinations, memory_of_destinations);
+    int memory_of_destinations = rcr->user_space_info->number_of_destinations;
+    memcpy(dest_pointer_start, rcr->user_space_info->destinations, memory_of_destinations);
     // ---------------------------------------------------------------------------------------
 
 
     // copy bloom filter
     // ---------------------------------------------------------------------------------------
     bloom_pointer_start = (unsigned char *) lir_header + sizeof(struct LiRHeader) + memory_of_destinations;
-    memcpy(bloom_pointer_start, rcr->bitset, pvs->bloom_filter->effective_bytes);
-    print_memory_in_hex(bloom_pointer_start, pvs->bloom_filter->effective_bytes);
+    memcpy(bloom_pointer_start, rcr->bitset, pvs->bloom_filter->bf_effective_bytes);
+    print_memory_in_hex(bloom_pointer_start, pvs->bloom_filter->bf_effective_bytes);
     // ---------------------------------------------------------------------------------------
 
     // 等待一切就绪之后计算 lir_send_check

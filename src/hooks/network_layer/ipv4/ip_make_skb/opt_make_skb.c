@@ -404,7 +404,7 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     opt_header->id = 0; // 进行 id 的设置 (字段6) -> 如果不进行分片的话，那么 id 默认设置为 0
     opt_header->check = 0; // 校验和字段 (字段7)
     opt_header->source = rcr->source; // 设置源 (字段8)
-    opt_header->dest = rcr->destination_info->destinations[0]; // 设置目的 (字段9)
+    opt_header->dest = rcr->user_space_info->destinations[0]; // 设置目的 (字段9)
     opt_header->hdr_len = get_opt_header_size(rcr, sent_first_packet); // 设置数据包总长度 (字段10)
     opt_header->tot_len = htons(skb->len);// tot_len 字段 11 (等待后面进行赋值)
     opt_header->current_path_index = 0; // 当前的索引 (字段12)

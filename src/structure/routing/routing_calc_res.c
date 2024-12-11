@@ -12,14 +12,14 @@
  * @param number_of_destinations 目的节点的数量
  * @return
  */
-struct RoutingCalcRes *init_rcr(int source, struct DestinationAndProtocolInfo* destination_info, int bitset_length, int protocol) {
+struct RoutingCalcRes *init_rcr(int source, struct UserSpaceInfo* destination_info, int bitset_length, int protocol) {
     // 判断协议
     if(LIR_VERSION_NUMBER == protocol) {
         struct RoutingCalcRes *route_calculation_result = (struct RoutingCalcRes *) (kmalloc(sizeof(struct RoutingCalcRes), GFP_KERNEL));
         route_calculation_result->bitset = (unsigned char *) (kmalloc(bitset_length, GFP_KERNEL));
         route_calculation_result->output_interface = NULL;
         route_calculation_result->source = source;
-        route_calculation_result->destination_info = destination_info;
+        route_calculation_result->user_space_info = destination_info;
         route_calculation_result->number_of_routes = 0;
         route_calculation_result->rtes = NULL;
         return route_calculation_result;
@@ -28,7 +28,7 @@ struct RoutingCalcRes *init_rcr(int source, struct DestinationAndProtocolInfo* d
         route_calculation_result->bitset = NULL;
         route_calculation_result->output_interface = NULL;
         route_calculation_result->source = source;
-        route_calculation_result->destination_info = destination_info;
+        route_calculation_result->user_space_info = destination_info;
         route_calculation_result->number_of_routes = destination_info->number_of_destinations;
         route_calculation_result->rtes = (struct RoutingTableEntry**)(kmalloc(sizeof(struct RoutingTableEntry*) * destination_info->number_of_destinations, GFP_KERNEL));
         return route_calculation_result;
@@ -67,13 +67,13 @@ void free_rcr(struct RoutingCalcRes *route_calculation_result) {
  * @return
  */
 struct RoutingCalcRes *construct_rcr_with_dest_and_proto_info(struct PathValidationStructure* pvs,
-                                                              struct DestinationAndProtocolInfo* dest_and_proto_info,
+                                                              struct UserSpaceInfo* dest_and_proto_info,
                                                               int source){
     struct RoutingCalcRes* rcr;
     if(ARRAY_BASED_ROUTING_TABLE_TYPE == pvs->routing_table_type) {
-        rcr = construct_rcr_with_dest_info_under_abrt(dest_and_proto_info, pvs->abrt, source, (int)(pvs->bloom_filter->effective_bytes));
+        rcr = construct_rcr_with_dest_info_under_abrt(dest_and_proto_info, pvs->abrt, source, (int)(pvs->bloom_filter->bf_effective_bytes));
     } else if(HASH_BASED_ROUTING_TABLE_TYPE == pvs->routing_table_type) {
-        rcr = construct_rcr_with_dest_info_under_hbrt(dest_and_proto_info, pvs->hbrt, source, (int)(pvs->bloom_filter->effective_bytes));
+        rcr = construct_rcr_with_dest_info_under_hbrt(dest_and_proto_info, pvs->hbrt, source, (int)(pvs->bloom_filter->bf_effective_bytes));
     } else {
         LOG_WITH_PREFIX("unsupported routing table type");
         return NULL;
@@ -89,7 +89,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_and_proto_info(struct PathValidat
  * @param bitset_length 字节数组长度
  * @return
  */
-struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct DestinationAndProtocolInfo *dest_and_proto_info,
+struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct UserSpaceInfo *dest_and_proto_info,
                                                                struct ArrayBasedRoutingTable* abrt,
                                                                int source,
                                                                int bitset_length) {
@@ -130,7 +130,7 @@ struct RoutingCalcRes *construct_rcr_with_dest_info_under_abrt(struct Destinatio
  * @param number_of_interfaces 接口的数量
  * @return
  */
-struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct DestinationAndProtocolInfo *dest_and_proto_info,
+struct RoutingCalcRes *construct_rcr_with_dest_info_under_hbrt(struct UserSpaceInfo *dest_and_proto_info,
                                                                struct HashBasedRoutingTable* hbrt,
                                                                int source,
                                                                int bitset_length) {

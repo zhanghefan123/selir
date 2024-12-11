@@ -218,7 +218,7 @@ struct sk_buff* self_defined__icing_make_skb(struct sock *sk,
     icing_header->id = 0; // 进行 id 的设置 (字段6) -> 如果不进行分片的话，那么 id 默认设置为 0
     icing_header->check = 0; // 校验和字段 (字段7)
     icing_header->source = rcr->source; // 设置源 (字段8)
-    icing_header->dest = rcr->destination_info->destinations[0]; // 设置目的 (字段9)
+    icing_header->dest = rcr->user_space_info->destinations[0]; // 设置目的 (字段9)
     icing_header->hdr_len = get_icing_header_size(rcr); // 设置数据包总长度 (字段10)
     icing_header->tot_len = htons(skb->len);// tot_len 字段 11 (等待后面进行赋值)
     icing_header->length_of_path = rcr->rtes[0]->path_length; // 设置长度 (字段12)

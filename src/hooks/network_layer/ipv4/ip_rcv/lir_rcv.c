@@ -18,6 +18,10 @@ int lir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
     PRINT_LIR_HEADER(lir_header);
     // 3. 进行初级的校验
     skb = lir_rcv_validate(skb, net);
+    if (NULL == skb){
+        LOG_WITH_PREFIX("validation failed");
+        return 0;
+    }
     // 4. 进行实际的转发
     process_result = lir_forward_packets(skb, pvs, net, orig_dev);
     // 5. 判断是否需要向上层提交或者释放

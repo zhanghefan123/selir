@@ -14,3 +14,8 @@ void opt_send_check(struct OptHeader* opt_header){
     opt_header->check = 0;
     opt_header->check = ip_fast_csum((unsigned char*)opt_header, opt_header->hdr_len / 4);
 }
+
+void selir_send_check(struct SELiRHeader* selir_header){
+    selir_header->check = 0;
+    selir_header->check = ip_fast_csum((unsigned char*)selir_header, selir_header->hdr_len / 4);
+}

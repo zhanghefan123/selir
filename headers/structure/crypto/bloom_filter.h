@@ -11,8 +11,8 @@ struct BloomFilter {
     u32 aligned_u32_count; // number of u32 values in this array
     u32 number_of_hash_functions; // number of hash functions
     unsigned char* bitset; // bloom filter bitset and how to assign it
-    u32 effective_bits; // the effective bits in bloom filter
-    u32 effective_bytes; // the effective bytes in bloom filter, it should be calculated while in the bloom filter params setting
+    u32 bf_effective_bits; // the effective bits in bloom filter
+    u32 bf_effective_bytes; // the effective bytes in bloom filter, it should be calculated while in the bloom filter params setting
 };
 
 struct BloomFilter* init_bloom_filter(u32 effective_bits, u32 hash_seed, u32 number_of_hash_functions); // 进行布隆过滤器的初始化

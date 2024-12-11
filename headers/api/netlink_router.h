@@ -30,9 +30,10 @@ enum {
     CMD_ECHO, // 1. 用来进行消息回显的
     CMD_SET_NODE_ID, // 2. 用来设置本节点的 id
     CMD_INIT_ROUTING_AND_FORWARDING_TABLE, // 2. 初始化路由表和接口表
-    CMD_INIT_BLOOM_FILTER, // 3. 初始化布隆过滤器
-    CMD_INSERT_INTERFACE_TABLE_ENTRY, // 4. 进行接口表条目的插入 (注意要首先进行接口表条目的插入, 因为在构建路由表的时候需要利用到接口表)
-    CMD_INSERT_ROUTING_TABLE_ENTRY, // 5. 进行路由表条目的插入
+    CMD_INIT_SELIR,  // 3. 初始化 selir 数据结构
+    CMD_INIT_BLOOM_FILTER, // 4. 初始化布隆过滤器
+    CMD_INSERT_INTERFACE_TABLE_ENTRY, // 5. 进行接口表条目的插入 (注意要首先进行接口表条目的插入, 因为在构建路由表的时候需要利用到接口表)
+    CMD_INSERT_ROUTING_TABLE_ENTRY, // 6. 进行路由表条目的插入
 
 };
 

@@ -42,6 +42,9 @@ int self_defined_udp_send_skb(struct sk_buff *skb,
         // 因为这里不涉及到选项字段的提取, 所以只需要判断是否是 OPT_VERSION_NUMBER
         struct OptHeader* opt_header = opt_hdr(skb);
         source_identification = opt_header->source;
+    } else if (SELIR_VERSION_NUMBER == validation_protocol){
+        struct SELiRHeader* selir_header = selir_hdr(skb);
+        source_identification = selir_header->source;
     } else {
         LOG_WITH_PREFIX("current not supported protocol");
     }

@@ -31,11 +31,12 @@ add_executable(lkm
         src/structure/path_validation_structure.c
         src/structure/interface/interface_table.c
         src/structure/namespace/namespace.c
-        src/structure/routing/destination_info.c
+        src/structure/routing/user_space_info.c
         src/structure/routing/array_based_routing_table.c
         src/structure/routing/hash_based_routing_table.c
         src/structure/routing/routing_calc_res.c
         src/structure/routing/routing_table_entry.c
+        src/structure/header/selir_header.c
         src/structure/header/lir_header.c
         src/structure/header/icing_header.c
         src/structure/header/opt_header.c
@@ -59,6 +60,7 @@ add_executable(lkm
         src/hooks/network_layer/ipv4/ip_local_out/impl.c
         src/hooks/network_layer/ipv4/ip_send_check/impl.c
         src/hooks/network_layer/ipv4/ip_output/impl.c
+        src/hooks/network_layer/ipv4/ip_rcv/selir_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/lir_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/icing_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/opt_rcv.c

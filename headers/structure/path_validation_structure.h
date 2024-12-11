@@ -10,6 +10,7 @@
 #include "structure/routing/array_based_routing_table.h"
 #include "structure/routing/hash_based_routing_table.h"
 #include "structure/session/session_table.h"
+#include "structure/header/selir_header.h"
 
 struct PathValidationStructure {
     // 当前节点的 id
@@ -26,6 +27,8 @@ struct PathValidationStructure {
     struct HashBasedSessionTable* hbst;
     // 布隆过滤器
     struct BloomFilter *bloom_filter;
+    // selir 信息
+    struct SELiRInfo* selir_info;
     // 哈希结构体
     struct shash_desc* hash_api;
     // hmac结构体

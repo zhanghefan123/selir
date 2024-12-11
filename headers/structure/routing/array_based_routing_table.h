@@ -6,7 +6,7 @@
 #define LOADABLE_KERNEL_MODULE_ARRAY_BASED_ROUTING_TABLE_H
 
 #include "structure/routing/routing_table_entry.h"
-#include "structure/routing/destination_info.h"
+#include "structure/routing/user_space_info.h"
 #include "structure/crypto/bloom_filter.h"
 #include "tools/tools.h"
 

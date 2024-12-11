@@ -60,4 +60,8 @@ struct sk_buff *self_defined_selir_make_skb(struct sock *sk,
                                             struct inet_cork *cork, unsigned int flags, struct RoutingCalcRes *rcr);
 
 
+struct sk_buff *self_defined__selir_make_skb(struct sock *sk, struct flowi4 *fl4,
+                                             struct sk_buff_head *queue, struct inet_cork *cork,
+                                             struct RoutingCalcRes *rcr);
+
 #endif //LOADABLE_KERNEL_MODULE_IP_MAKE_SKB_H

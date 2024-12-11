@@ -21,19 +21,20 @@ pvm-objs := \
 	src/structure/path_validation_sock_structure.o \
 	src/structure/session/session_table.o \
 	src/structure/path_validation_structure.o \
+	src/structure/header/tools.o \
 	src/structure/header/lir_header.o \
 	src/structure/header/icing_header.o \
 	src/structure/header/opt_header.o \
+	src/structure/header/selir_header.o \
 	src/structure/namespace/namespace.o \
 	src/structure/crypto/crypto_structure.o \
 	src/structure/crypto/bloom_filter.o \
 	src/structure/interface/interface_table.o \
-	src/structure/routing/destination_info.o \
+	src/structure/routing/user_space_info.o \
 	src/structure/routing/array_based_routing_table.o \
 	src/structure/routing/hash_based_routing_table.o \
 	src/structure/routing/routing_calc_res.o \
 	src/structure/routing/routing_table_entry.o \
-	src/structure/header/tools.o \
 	src/hooks/inet_sendmsg/impl.o \
 	src/hooks/inet_sendmsg/hook.o \
 	src/hooks/network_layer/ipv4/ip_flush_pending_frames/impl.o\
@@ -49,6 +50,7 @@ pvm-objs := \
 	src/hooks/network_layer/ipv4/ip_make_skb/opt_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_make_skb/selir_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_output/impl.o \
+	src/hooks/network_layer/ipv4/ip_rcv/selir_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/lir_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/icing_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/opt_rcv.o \

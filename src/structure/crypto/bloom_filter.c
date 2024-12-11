@@ -18,15 +18,15 @@ struct BloomFilter *init_bloom_filter(u32 effective_bits, u32 hash_seed, u32 num
     // 设置 u32 个数
     created_bloom_filter->aligned_u32_count = 0x0;
     // 设置 effective_bits
-    created_bloom_filter->effective_bits = effective_bits;
+    created_bloom_filter->bf_effective_bits = effective_bits;
     // 设置掩码
     created_bloom_filter->bitset_mask = effective_bits - 1;
     // 设置 effective_bytes
-    created_bloom_filter->effective_bytes = (effective_bits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
+    created_bloom_filter->bf_effective_bytes = (effective_bits + BITS_PER_BYTE - 1) / BITS_PER_BYTE;
     // 设置 bit set
     created_bloom_filter->bitset = (unsigned char *) kmalloc(
-            sizeof(unsigned char) * created_bloom_filter->effective_bytes, GFP_KERNEL);
-    memset(created_bloom_filter->bitset, 0, created_bloom_filter->effective_bytes);
+            sizeof(unsigned char) * created_bloom_filter->bf_effective_bytes, GFP_KERNEL);
+    memset(created_bloom_filter->bitset, 0, created_bloom_filter->bf_effective_bytes);
     // 设置哈希种子
     created_bloom_filter->hash_seed = hash_seed;
     // 设置哈希函数个数
@@ -42,11 +42,11 @@ struct BloomFilter *init_bloom_filter(u32 effective_bits, u32 hash_seed, u32 num
  */
 struct BloomFilter *copy_bloom_filter(struct BloomFilter *old_bloom_filter) {
     // 创建一个新的布隆过滤器
-    struct BloomFilter *new_bloom_filter = init_bloom_filter(old_bloom_filter->effective_bits,
+    struct BloomFilter *new_bloom_filter = init_bloom_filter(old_bloom_filter->bf_effective_bits,
                                                              old_bloom_filter->hash_seed,
                                                              old_bloom_filter->number_of_hash_functions);
     // 拷贝数组
-    memcpy(new_bloom_filter->bitset, old_bloom_filter->bitset, sizeof(unsigned char) * old_bloom_filter->effective_bytes);
+    memcpy(new_bloom_filter->bitset, old_bloom_filter->bitset, sizeof(unsigned char) * old_bloom_filter->bf_effective_bytes);
     // 返回新的布隆过滤器
     return new_bloom_filter;
 }
@@ -60,7 +60,7 @@ void reset_bloom_filter(struct BloomFilter *bloom_filter) {
     // 判断是否 bitset 不为空
     if (bloom_filter->bitset != NULL) {
         // 如果不为空, 调用 memset 刷 0
-        memset(bloom_filter->bitset, 0, sizeof(unsigned char) * bloom_filter->effective_bytes);
+        memset(bloom_filter->bitset, 0, sizeof(unsigned char) * bloom_filter->bf_effective_bytes);
     }
 }
 

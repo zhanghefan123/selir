@@ -37,6 +37,7 @@ void PRINT_ICING_HEADER(struct ICINGHeader *icing_header) {
 unsigned char *calculate_icing_hash(struct shash_desc *hash_api, struct ICINGHeader *icing_header) {
     // check 和 current_path_index 不作为静态字段来进行哈希
     int not_calculated_part = sizeof(__sum16) + sizeof(__u16);
+    // 计算哈希并返回
     return calculate_hash(hash_api,
                           (unsigned char *) (icing_header),
                           sizeof(struct ICINGHeader) - not_calculated_part);
