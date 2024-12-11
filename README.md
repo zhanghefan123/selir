@@ -29,6 +29,10 @@
 
 6. 在计算哈希之前需要将校验和置为0
 
+7. 注意在进行 hmac 计算的时候需要传入 data data_length key key_length, 我们需要仔细判断哪些 length 可以使用 strlen 来获得
+
+8. general protection fault error 出现的原因, 一般是我们 free 了内存。
+
 # directory illustration:
 
 1. src/
