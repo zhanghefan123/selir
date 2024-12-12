@@ -19,6 +19,7 @@ struct SessionTableEntry {
     int *encrypt_order; // hmac 的次序, 在 C 节点, 顺序为 KC --> KB
     struct net_device *output_interface; // 出接口
     int previous_node; // 进行前驱节点的记录
+    unsigned char* session_keys; // 前驱节点的 key, 包括自身的 key
     struct hlist_node pointer; // 指向的是下一个节点
 };
 

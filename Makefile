@@ -76,8 +76,8 @@ pvm-objs := \
 OUTPUT_DIR = "./build"
 
 # 这个必须要是 headers 的绝对路径才能行
-#ccflags-y += -I/home/zhf/Projects/srv6/linux/path_validation_module/headers
-ccflags-y += -I/home/zhf/Projects/linux/selir/headers
+ccflags-y += -I/home/zhf/Projects/srv6/linux/path_validation_module/headers
+#ccflags-y += -I/home/zhf/Projects/linux/selir/headers
 
 
 all: compile

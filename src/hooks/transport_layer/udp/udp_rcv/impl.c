@@ -88,7 +88,8 @@ int pv_udp_rcv_core(struct sk_buff *skb, struct udp_table *udptable, int proto, 
     bool refcounted;
     int drop_reason;
     drop_reason = SKB_DROP_REASON_NOT_SPECIFIED;
-    LOG_WITH_PREFIX("pv_udp_rcv_core");
+    // 实验所需, 暂不打印
+    // LOG_WITH_PREFIX("pv_udp_rcv_core");
 
     /*
      *  Validate the packet.

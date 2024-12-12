@@ -41,8 +41,6 @@ add_executable(lkm
         src/structure/header/icing_header.c
         src/structure/header/opt_header.c
         src/structure/header/tools.c
-
-
         src/hooks/inet_sendmsg/impl.c
         src/hooks/inet_sendmsg/hook.c
 

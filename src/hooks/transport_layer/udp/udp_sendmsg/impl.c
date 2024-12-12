@@ -271,7 +271,8 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     // 如果没有进行 cork (called)
     // ----------------------------------------------------------------------------
     if (!corkreq) {
-        LOG_WITH_PREFIX("path validation send packet");
+        // 实验所需, 暂不打印
+        // LOG_WITH_PREFIX("path validation send packet");
         int index;
         struct inet_cork cork;
         // 进行不同类型的路径验证协议的解析
@@ -292,9 +293,6 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
             skb = self_defined_selir_make_skb(sk, fl4, getfrag, msg, ulen,
                                               sizeof(struct udphdr), &ipc,
                                               &cork, msg->msg_flags, rcr);
-            if(NULL != rcr->output_interface){
-                printk(KERN_EMERG "output interface name: %s \n", rcr->output_interface->name);
-            }
         } else {
             LOG_WITH_PREFIX("unsupported protocol");
             return -EINVAL;

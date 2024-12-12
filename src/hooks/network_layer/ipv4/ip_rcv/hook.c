@@ -13,16 +13,20 @@ asmlinkage int hook_ip_rcv(struct sk_buff *skb,
     if (IP_VERSION_NUMBER == version_number){
         return orig_ip_rcv(skb, dev, pt, orig_dev);
     } else if (LIR_VERSION_NUMBER == version_number) {
-        LOG_WITH_PREFIX("receive lir packet");
+        // 实验所需, 先不打印
+        // LOG_WITH_PREFIX("receive lir packet");
         return lir_rcv(skb, dev, pt, orig_dev);
     } else if (ICING_VERSION_NUMBER == version_number) {
-        LOG_WITH_PREFIX("receive icing packet");
+        // 实验所需, 先不打印
+        // LOG_WITH_PREFIX("receive icing packet");
         return icing_rcv(skb, dev, pt, orig_dev);
     } else if ((OPT_ESTABLISH_VERSION_NUMBER == version_number) || (OPT_DATA_VERSION_NUMBER == version_number)) {
-        LOG_WITH_PREFIX("receive opt packet");
+        // 实验所需, 先不打印
+        // LOG_WITH_PREFIX("receive opt packet");
         return opt_rcv(skb, dev, pt, orig_dev);
     } else if(SELIR_VERSION_NUMBER == version_number) {
-        LOG_WITH_PREFIX("receive selir packet");
+        // 实验所需, 先不打印
+        // LOG_WITH_PREFIX("receive selir packet");
         return selir_rcv(skb, dev, pt, orig_dev);
     } else {
         LOG_WITH_PREFIX("unknown packet type");

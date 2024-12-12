@@ -12,8 +12,8 @@ int selir_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type* p
     struct SELiRHeader* selir_header = selir_hdr(skb);
     struct PathValidationStructure* pvs = get_pvs_from_ns(net);
     int process_result;
-    // 2. 进行消息的打印
-    PRINT_SELIR_HEADER(selir_header);
+    // 2. 进行消息的打印 - 为了进行测试这里就先不进行打印
+    // PRINT_SELIR_HEADER(selir_header);
     // 3. 进行初级的校验
     skb = selir_rcv_validate(skb, net);
     if (NULL == skb)
@@ -25,14 +25,16 @@ int selir_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type* p
     process_result = selir_forward_packets(skb, pvs, net, orig_dev);
     // 5. 判断是否需要上层提交或者释放
     if(NET_RX_SUCCESS == process_result) {
-        LOG_WITH_PREFIX("local deliver");
+        // 5.1 数据包向上层进行提交
+        // 为了进行速率测试, 这里就先不进行打印
+        // LOG_WITH_PREFIX("local deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
-        pv_local_deliver(skb, selir_header->protocol,
-                         receive_interface_address);
+        pv_local_deliver(skb, selir_header->protocol,receive_interface_address);
         return 0;
     } else {
         // 5.2 进行数据包的释放
-        LOG_WITH_PREFIX("drop packet");
+        // 为了进行速率测试, 这里就先不进行打印
+        // LOG_WITH_PREFIX("drop packet");
         kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
         return 0;
     }
@@ -162,7 +164,7 @@ struct sk_buff* selir_rcv_validate(struct sk_buff* skb, struct net* net){
 int selir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
     // 1. 初始化变量
     int index;
-    int result;
+    int result = NET_RX_DROP;
     struct ArrayBasedInterfaceTable* abit = pvs->abit;
     struct SELiRHeader* selir_header = selir_hdr(skb);
     int source = selir_header->source;
@@ -172,18 +174,6 @@ int selir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* p
     unsigned char* selir_dest_pointer = get_selir_dest_start_pointer(selir_header, selir_header->ppf_len);
     unsigned char* original_bitset = pvs->bloom_filter->bitset;
     pvs->bloom_filter->bitset = ppf_start_pointer;
-    // 打印这边收到的 bitset
-    printk(KERN_EMERG "rcv bitset: \n");
-    print_memory_in_hex(pvs->bloom_filter->bitset, pvs->bloom_filter->bf_effective_bytes);
-
-    // 2. 判断是否需要进行本地的交付
-    for(index = 0; index < selir_header->dest_len; index++){
-        if(current_node_id == selir_dest_pointer[index]){
-            result = NET_RX_SUCCESS;
-        } else {
-            result = NET_RX_DROP;
-        }
-    }
 
     // 2. 准备计算 hmac
     char symmetric_key[20];
@@ -194,13 +184,35 @@ int selir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* p
                                                 HASH_OUTPUT_LENGTH,
                                                 (unsigned char*)symmetric_key,
                                                 (int)strlen(symmetric_key));
+
     // 3. 将 pvf (保持和 opt 相同 16 字节) 和 hmac 进行异或的操作
     int temp;
     for(temp = 0; temp < 2; temp++){
         *((u64*)pvf_start_pointer + temp) = *((u64*)hmac_result + temp) ^ *((u64*)(pvf_start_pointer) + temp);
     }
 
-    // 4. 进行接口表的遍历
+
+    // 4. 判断是否需要进行本地的交付
+    for(index = 0; index < selir_header->dest_len; index++){
+        if(current_node_id == selir_dest_pointer[index]){
+            result = NET_RX_SUCCESS;
+            break;
+        }
+    }
+
+    // 5. 进一步判断交付本地的是否是合法的
+    if(NET_RX_SUCCESS == result){
+        if(0 == check_element_in_bloom_filter(pvs->bloom_filter, pvf_start_pointer, 16)) {
+            // 为了进行速率测试, 这里就先不进行打印
+            // LOG_WITH_PREFIX("destination validation succeed");
+        } else {
+            // 为了进行速率测试, 这里就先不进行打印
+            // LOG_WITH_PREFIX("destination validation failed");
+            result = NET_RX_DROP;
+        }
+    }
+
+    // 6. 进行接口表的遍历
     for(index = 0; index < abit->number_of_interfaces; index++){
         struct InterfaceTableEntry* ite = abit->interfaces[index];
         int link_identifier = ite->link_identifier;
@@ -214,16 +226,17 @@ int selir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* p
             struct sk_buff* copied_skb = skb_copy(skb, GFP_KERNEL);
             // 进行数据包的转发
             pv_packet_forward(copied_skb, ite->interface, current_ns);
-            // 打印转发了数据包
-            LOG_WITH_PREFIX("forward packet");
+            // 为了进行速率测试, 这里就先不进行打印, 打印转发了数据包
+            // LOG_WITH_PREFIX("forward packet");
         } else {
-            LOG_WITH_PREFIX("not forward packet");
+            // 为了进行速率测试, 这里就先不进行打印
+            // LOG_WITH_PREFIX("not forward packet");
         }
         // 再次进行异或就还原了
         (*(int*)(pvf_start_pointer)) = (*(int*)(pvf_start_pointer)) ^ link_identifier;
     }
 
-    // 5. 最后进行哈希和 hmac 的释放
+    // 7. 最后进行哈希和 hmac 的释放
     kfree(hmac_result);
     kfree(static_fields_hash);
     pvs->bloom_filter->bitset = original_bitset;
