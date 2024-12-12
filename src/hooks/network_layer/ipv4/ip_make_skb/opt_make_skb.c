@@ -170,7 +170,7 @@ static void initialize_opvs(struct shash_desc *hmac_api,
     // 3. 循环产生 opv_i
     for (index = 0; index < rte->path_length; index++) {
         // 3.1 计算 combination
-        unsigned char combination[100];
+        unsigned char combination[100] = {0};
         // 3.1.1 拼接前一个 pvf
         memcpy(combination, pvf_hmac_result, PVF_LENGTH); // 从 20 字节之中的 HMAC_OUTPUT 之中 拷贝 16 字节
         // 3.1.2 拼接 data_hash
@@ -191,11 +191,6 @@ static void initialize_opvs(struct shash_desc *hmac_api,
         // 3.2 拿到中间节点的 key
         unsigned char *intermediate_session_key = pvss->session_keys[index];
 
-        if(index == 1){
-            printk(KERN_EMERG "previous node: %d\n", rte->source_id);
-            print_memory_in_hex(intermediate_session_key, HMAC_OUTPUT_LENGTH);
-            print_memory_in_hex(pvf_hmac_result, PVF_LENGTH);
-        }
 
         // 3.2 进行 opv_i 的计算, 并拷贝到相应的位置
         opv_i = calculate_hmac(hmac_api,
@@ -204,13 +199,26 @@ static void initialize_opvs(struct shash_desc *hmac_api,
                                intermediate_session_key,
                                HMAC_OUTPUT_LENGTH);
 
-        // 3.3 拷贝到指定的位置处
+
+
+
+
+        // 3.4 拷贝到指定的位置处
         memcpy(&(opvs[index]), opv_i, OPV_LENGTH);
 
-        // 3.4 拷贝完成之后进行释放
+
+        // 打印最后一个 opv
+        if(index == rte->path_length - 1){
+            printk(KERN_EMERG "MAKE SKB last opv:");
+            print_memory_in_hex(combination, PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t));
+            print_memory_in_hex(opv_i, OPV_LENGTH);
+        }
+
+
+        // 3.5 拷贝完成之后进行释放
         kfree(opv_i);
 
-        // 3.5 如果已经到了最后一个 opv, 其后续没有 pvf 需要计算了
+        // 3.6 如果已经到了最后一个 opv, 其后续没有 pvf 需要计算了
         if (index == rte->path_length - 1) {
             break;
         } else {

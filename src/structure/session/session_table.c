@@ -19,6 +19,7 @@ struct SessionTableEntry *init_ste_in_dest(struct SessionID *session_id,
     ste->encrypt_order = (int *) (kmalloc(sizeof(int) * encrypt_count, GFP_KERNEL));
     ste->output_interface = NULL;
     ste->previous_node = previous_node;
+    ste->session_keys = (unsigned char**) (kmalloc(sizeof(unsigned char *) * encrypt_count, GFP_KERNEL));
     return ste;
 }
 
@@ -32,6 +33,7 @@ struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *session_id,
     ste->encrypt_order = NULL;
     ste->output_interface = output_interface;
     ste->previous_node = previous_node;
+    ste->session_keys = NULL;
     return ste;
 }
 

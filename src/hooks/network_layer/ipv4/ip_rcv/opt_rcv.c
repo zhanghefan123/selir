@@ -95,12 +95,25 @@ static void destination_process_session_packets(struct PathValidationStructure *
     struct SessionTableEntry *ste = init_ste_in_dest(session_id, encrypt_count, previous_node);
     // 目的节点是第一个加密的, 其次是前驱节点
     ste->encrypt_order[0] = current_node_id;
-    for(index = 0; index < path_length - 1; index++){
-        ste->encrypt_order[index+1] = path[index+1].node_id;
+    for (index = 0; index < path_length - 1; index++) {
+        ste->encrypt_order[index + 1] = path[index].node_id;
     }
+    // 按照顺序进行 session_keys 的计算和存储
+    char secret_value[20];
+    for (index = 0; index < path_length; index++) {
+        int encrypt_node = ste->encrypt_order[index];
+        snprintf(secret_value, sizeof(secret_value), "key-%d", encrypt_node);
+        unsigned char *session_key = calculate_hmac(pvs->hmac_api,
+                                                    (unsigned char *) session_id,
+                                                    sizeof(struct SessionID),
+                                                    (unsigned char *) secret_value,
+                                                    (int) (strlen(secret_value)));
+        ste->session_keys[index] = session_key;
+    }
+
     // 这里可以测试打印一波, 看是否是正确的
     LOG_WITH_EDGE("encrypt order");
-    for(index = 0; index < path_length; index++){
+    for (index = 0; index < path_length; index++) {
         printk(KERN_EMERG "encrypt order %d\n", ste->encrypt_order[index]);
     }
     LOG_WITH_PREFIX("encrypt order");
@@ -223,7 +236,7 @@ static bool proof_verification(struct OptHeader *opt_header,
     struct OptOpv *opvs = (struct OptOpv *) (get_other_opt_opv_start_pointer(opt_header));
     int current_path_index = opt_header->current_path_index;
     // 2. 计算 combination
-    char combination[100];
+    unsigned char combination[100] = {0};
     // 2.1 拼接前一个 pvf
     memcpy(combination, pvf_start_pointer, PVF_LENGTH);
     // 2.2 拼接 data hash
@@ -232,10 +245,6 @@ static bool proof_verification(struct OptHeader *opt_header,
     *((int *) (combination + PVF_LENGTH + HASH_LENGTH)) = ste->previous_node;
     // 2.4 拼接 timestamp
     *((time64_t *) (combination + PVF_LENGTH + HASH_LENGTH + sizeof(int))) = (*time_stamp_pointer);
-    // 2.5 进行 combination 的打印
-    printk(KERN_EMERG "previous node %d\n", ste->previous_node);
-    print_memory_in_hex(session_key, HMAC_OUTPUT_LENGTH);
-    print_memory_in_hex(pvf_start_pointer, PVF_LENGTH);
     // 3. 利用 session_key 计算 opv
     unsigned char *hmac_result = calculate_hmac(pvs->hmac_api,
                                                 (unsigned char *) combination,
@@ -280,8 +289,98 @@ static void proof_update(struct OptHeader *opt_header, struct shash_desc *hmac_a
  * 目的节点处理数据包逻辑
  * @return
  */
-static int destination_process_data_packets() {
-    return NET_RX_DROP;
+static int destination_process_data_packets(struct OptHeader *opt_header,
+                                            struct PathValidationStructure *pvs,
+                                            struct SessionTableEntry *ste,
+                                            struct SessionID* session_id) {
+    // 索引
+    int index;
+    // 获取 hash 起始指针
+    unsigned char *hash_start_pointer = get_other_opt_hash_start_pointer(opt_header);
+    // 获取 pvf 起始指针
+    unsigned char *pvf_start_pointer = get_other_opt_pvf_start_pointer(opt_header);
+    // 获取时间起始指针
+    time64_t *time_stamp_pointer = (time64_t*)(get_other_opt_timestamp_start_pointer(opt_header));
+    // 获取 opvs
+    struct OptOpv* opvs = (struct OptOpv*)(get_other_opt_opv_start_pointer(opt_header));
+    // 获取目的节点 session_key
+    unsigned char *session_key = ste->session_keys[0];
+
+    // 完成 PVF 的计算和校验
+    // ------------------------------------------------------------------------------------------------
+    // 在外侧首先计算一次 (使用的是 MACkd)
+    unsigned char *hmac_result = calculate_hmac(pvs->hmac_api,
+                                                hash_start_pointer,
+                                                HASH_LENGTH,
+                                                session_key,
+                                                HMAC_OUTPUT_LENGTH);
+    // 接着进行循环计算
+    for (index = 1; index < ste->encrypt_len; index++) {
+        session_key = ste->session_keys[index];
+        unsigned char *tmp = calculate_hmac(pvs->hmac_api,
+                                            hmac_result,
+                                            PVF_LENGTH,
+                                            session_key,
+                                            HMAC_OUTPUT_LENGTH);
+        kfree(hmac_result);
+        hmac_result = tmp;
+    }
+
+    // 最终得到的 hmac_result 和数据包内的 pvf 进行比较
+    bool pvf_result = memory_compare(pvf_start_pointer, hmac_result, PVF_LENGTH);
+
+    // 计算完成之后完成 hmac_result 的释放
+    kfree(hmac_result);
+    // ------------------------------------------------------------------------------------------------
+
+    // 计算 combination
+    // ------------------------------------------------------------------------------------------------
+    unsigned char combination[100] = {0};
+    memcpy(combination, pvf_start_pointer, PVF_LENGTH);
+    memcpy(combination + PVF_LENGTH, hash_start_pointer, HASH_LENGTH);
+    *((int *) (combination + PVF_LENGTH + HASH_LENGTH)) = ste->previous_node;
+    *((time64_t *) (combination + PVF_LENGTH + HASH_LENGTH + sizeof(int))) = (*time_stamp_pointer);
+    // ------------------------------------------------------------------------------------------------
+
+
+    // 完成 OPV 的计算和校验
+    // ------------------------------------------------------------------------------------------------
+    hmac_result = calculate_hmac(pvs->hmac_api,
+                                 (unsigned char *) combination,
+                                 PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t),
+                                 ste->session_keys[0],
+                                 HMAC_OUTPUT_LENGTH);
+
+    printk(KERN_EMERG "combination and final");
+    print_memory_in_hex(combination, PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t));
+    print_memory_in_hex((unsigned char*)(&(opvs[opt_header->current_path_index])), OPV_LENGTH);
+
+
+//    // 之前存储的 session_key
+//    printk(KERN_EMERG "previous node: %d\n", ste->previous_node);
+//    printk(KERN_EMERG "pre store destination session keys ");
+//    print_memory_in_hex(ste->session_keys[0], HMAC_OUTPUT_LENGTH);
+//
+//    // 现在计算的 session_key
+//    unsigned char *current_calculated_session_key = calculate_session_key(pvs, session_id);
+//    printk(KERN_EMERG "current calculated session keys ");
+//    print_memory_in_hex(current_calculated_session_key, HMAC_OUTPUT_LENGTH);
+//    kfree(current_calculated_session_key);
+
+
+    bool opv_result = memory_compare((unsigned char *) (&(opvs[opt_header->current_path_index])), hmac_result, OPV_LENGTH);
+    // 计算完成之后进行 hmac_result 的释放
+    kfree(hmac_result);
+    // ------------------------------------------------------------------------------------------------
+
+    // 根据结果决定数据包的处理结果
+    if (pvf_result && opv_result) {
+        LOG_WITH_PREFIX("destination validation succeed");
+        return NET_RX_SUCCESS;
+    } else {
+        LOG_WITH_PREFIX("destination validation failed");
+        return NET_RX_DROP;
+    }
 }
 
 /**
@@ -308,6 +407,7 @@ static void intermediate_process_data_packets(struct sk_buff *skb, struct OptHea
         proof_update(opt_header, pvs->hmac_api, session_key);
     } else { // 如果验证是失败的, 则直接进行包的丢弃
         // LOG_WITH_PREFIX("verification failed");
+        return;
     }
     // 9.验证和更新完成之后, 就可以丢弃掉 session_key 了
     kfree(session_key);
@@ -349,7 +449,7 @@ int opt_forward_data_packets(struct sk_buff *skb, struct PathValidationStructure
     local_deliver = pvs->node_id == destination;
     if (local_deliver) {
         // 如果是到达目的节点, 有目的节点的处理
-        return destination_process_data_packets();
+        return destination_process_data_packets(opt_header, pvs, ste, session_id);
     } else {
         // 如果是中间节点, 有中间节点的处理
         intermediate_process_data_packets(skb, opt_header, pvs, ste, session_id, current_ns);
