@@ -21,7 +21,8 @@ int opt_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
         return 0;
     }
     // 3. 进行数据包的打印
-    PRINT_OPT_HEADER(opt_header);
+    // 先注释
+    // PRINT_OPT_HEADER(opt_header);
     // 4. 进行不同的数据包的处理
     if (OPT_ESTABLISH_VERSION_NUMBER == opt_header->version) {
         process_result = opt_forward_session_establish_packets(skb, pvs, current_ns, orig_dev);
@@ -34,12 +35,13 @@ int opt_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
     }
     // 5. 进行数据包本地的处理
     if (NET_RX_SUCCESS == process_result) {
-        LOG_WITH_PREFIX("local deliver");
+        // 为了进行实验, 暂时注释掉
+        // LOG_WITH_PREFIX("local deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
         pv_local_deliver(skb, opt_header->protocol, receive_interface_address);
         return 0;
     } else if (NET_RX_DROP == process_result) {
-        LOG_WITH_PREFIX("packet drop");
+        // LOG_WITH_PREFIX("packet drop");
         kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
         return 0;
     } else {
@@ -136,11 +138,11 @@ static void destination_process_session_packets(struct PathValidationStructure *
     }
 
     // 这里可以测试打印一波, 看是否是正确的
-    LOG_WITH_EDGE("encrypt order");
-    for (index = 0; index < path_length; index++) {
-        printk(KERN_EMERG "encrypt order %d\n", ste->encrypt_order[index]);
-    }
-    LOG_WITH_PREFIX("encrypt order");
+    //    LOG_WITH_EDGE("encrypt order");
+    //    for (index = 0; index < path_length; index++) {
+    //        printk(KERN_EMERG "encrypt order %d\n", ste->encrypt_order[index]);
+    //    }
+    //    LOG_WITH_PREFIX("encrypt order");
     // 将路径添加到 hbst 之中
     add_entry_to_hbst(pvs->hbst, ste);
 }
@@ -393,10 +395,10 @@ static int destination_process_data_packets(struct OptHeader *opt_header,
 
     // 根据结果决定数据包的处理结果
     if (pvf_result && opv_result) {
-        LOG_WITH_PREFIX("destination validation succeed");
+        // LOG_WITH_PREFIX("destination validation succeed");
         return NET_RX_SUCCESS;
     } else {
-        LOG_WITH_PREFIX("destination validation failed");
+        // LOG_WITH_PREFIX("destination validation failed");
         return NET_RX_DROP;
     }
 }

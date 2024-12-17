@@ -212,7 +212,7 @@ struct sk_buff *self_defined__session_make_skb(struct sock *sk,
     unsigned char *hash_value = calculate_session_id(pvs->hash_api, rcr, rte,current_time_stamp); // 这里的 session_id 是 20 字节的, 实际只需要 16 字节
     memcpy(&session_id, hash_value, SESSION_ID_LENGTH);
     kfree(hash_value);
-    printk(KERN_EMERG "make skb session_id: %llu %llu\n", session_id.first_part, session_id.second_part);
+    // printk(KERN_EMERG "make skb session_id: %llu %llu\n", session_id.first_part, session_id.second_part);
     // ---------------------------------------------------------------------------------------
 
     // 头部后续部分初始化

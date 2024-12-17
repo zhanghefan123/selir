@@ -137,11 +137,11 @@ static void initialize_opvs(struct shash_desc *hmac_api,
 
 
         // 打印最后一个 opv
-        if(index == rte->path_length - 1){
-            printk(KERN_EMERG "MAKE SKB last opv:");
-            print_memory_in_hex(combination, PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t));
-            print_memory_in_hex(opv_i, OPV_LENGTH);
-        }
+//        if(index == rte->path_length - 1){
+//            printk(KERN_EMERG "MAKE SKB last opv:");
+//            print_memory_in_hex(combination, PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t));
+//            print_memory_in_hex(opv_i, OPV_LENGTH);
+//        }
 
 
         // 3.5 拷贝完成之后进行释放

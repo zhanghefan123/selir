@@ -26,7 +26,8 @@ int lir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
     process_result = lir_forward_packets(skb, pvs, net, orig_dev);
     // 5. 判断是否需要向上层提交或者释放
     if(NET_RX_SUCCESS == process_result) {
-        LOG_WITH_PREFIX("local deliver");
+        // 为了进行实验, 暂时注释掉
+        // LOG_WITH_PREFIX("local deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
         pv_local_deliver(skb, lir_header->protocol,
                          receive_interface_address);

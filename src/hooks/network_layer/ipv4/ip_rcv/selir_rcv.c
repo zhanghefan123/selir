@@ -212,15 +212,6 @@ static int proof_verification(struct SessionTableEntry *ste,
     } else {
         return NET_RX_DROP;
     }
-
-    // 进行最终的 pvf 结果的打印
-//    printk(KERN_EMERG "regenerated pvf:\n");
-//    print_memory_in_hex(final_pvf, PVF_LENGTH);
-//    printk(KERN_EMERG "packet pvf:\n");
-//    print_memory_in_hex(pvf, PVF_LENGTH);
-//
-//
-//    return NET_RX_SUCCESS;
 }
 
 int selir_forward_packets(struct sk_buff *skb, struct PathValidationStructure *pvs, struct net *current_ns,
@@ -236,23 +227,19 @@ int selir_forward_packets(struct sk_buff *skb, struct PathValidationStructure *p
     unsigned char *selir_dest_pointer = get_selir_dest_start_pointer(selir_header, selir_header->ppf_len);
     unsigned char *original_bitset = pvs->bloom_filter->bitset;
     pvs->bloom_filter->bitset = ppf_start_pointer;
-
     struct SessionID *session_id = (struct SessionID *) (get_selir_session_id_start_pointer(selir_header));
+
+    // 2. 进行 session_table_entry 的查找
     struct SessionTableEntry *ste = find_ste_in_hbst(pvs->hbst, session_id);
     if (NULL == ste) {
         LOG_WITH_PREFIX("cannot find ste");
         return NET_RX_DROP;
     }
 
-
-    // 3. 准备计算 hmac
-    //    char symmetric_key[20];
-    //    snprintf(symmetric_key, sizeof(symmetric_key), "key-%d-%d", source, current_node_id);
-
+    // 3. 计算静态字段哈希
     unsigned char *static_fields_hash = calculate_selir_hash(pvs->hash_api, selir_header);
 
-
-    // 4. 判断是否需要进行本地的交付
+    // 4. 判断是否需要进行本地的交付以及 PVF 是否正确
     for (index = 0; index < selir_header->dest_len; index++) {
         if (current_node_id == selir_dest_pointer[index]) {
             result = proof_verification(ste, pvs,
@@ -262,19 +249,20 @@ int selir_forward_packets(struct sk_buff *skb, struct PathValidationStructure *p
         }
     }
 
+    // 5. 通过当前节点的 session_key 计算 hmac_result
     unsigned char *hmac_result = calculate_hmac(pvs->hmac_api,
                                                 static_fields_hash,
                                                 HASH_OUTPUT_LENGTH,
                                                 ste->session_key,
                                                 HMAC_OUTPUT_LENGTH);
 
-    // 3. 将 pvf (保持和 opt 相同 16 字节) 和 hmac 进行异或的操作
+    // 6. 将 pvf (保持和 opt 相同 16 字节) 和 hmac 进行异或的操作
     int temp;
     for (temp = 0; temp < 2; temp++) {
         *((u64 *) pvf_start_pointer + temp) = *((u64 *) hmac_result + temp) ^ *((u64 *) (pvf_start_pointer) + temp);
     }
 
-    // 6. 进一步判断交付本地的是否是合法的, 只有验证成功才是合法的
+    // 7. 如果可以进行本地的交付
     if (NET_RX_SUCCESS == result) {
         if (0 == check_element_in_bloom_filter(pvs->bloom_filter, pvf_start_pointer, 16)) {
             // 为了进行速率测试, 这里就先不进行打印
@@ -286,9 +274,11 @@ int selir_forward_packets(struct sk_buff *skb, struct PathValidationStructure *p
         }
     }
 
-    // 7. 进行接口表的遍历
+    // 8. 进行接口表的遍历
     for (index = 0; index < abit->number_of_interfaces; index++) {
+        // 接口表项
         struct InterfaceTableEntry *ite = abit->interfaces[index];
+        // 链路标识
         int link_identifier = ite->link_identifier;
         // 进行异或
         (*(int *) (pvf_start_pointer)) = (*(int *) (pvf_start_pointer)) ^ link_identifier;

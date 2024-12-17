@@ -15,19 +15,22 @@ int icing_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p
     struct PathValidationStructure* pvs = get_pvs_from_ns(net);
     int process_result;
     // 2. 进行消息的打印
-    PRINT_ICING_HEADER(icing_header);
+    // 为了实验进行暂时的注释
+    // PRINT_ICING_HEADER(icing_header);
     // 3. 进行初级的校验
     skb = icing_rcv_validate(skb, net);
     // 4. 进行实际的转发
     process_result = icing_forward_packets(skb, pvs, net, orig_dev);
     // 5. 判断是进行本地交付还是直接丢弃
     if(NET_RX_SUCCESS == process_result){
-        LOG_WITH_PREFIX("local_deliver");
+        // 为了实验, 暂时注释掉
+        // LOG_WITH_PREFIX("local_deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
         pv_local_deliver(skb, icing_header->protocol,
                          receive_interface_address);
     } else {
-        LOG_WITH_PREFIX("drop packet");
+        // 为了实验，暂时注释掉
+        // LOG_WITH_PREFIX("drop packet");
         kfree_skb_reason(skb, SKB_DROP_REASON_BPF_CGROUP_EGRESS);
     }
     return 0;
@@ -250,7 +253,8 @@ int icing_forward_packets(struct sk_buff* skb, struct PathValidationStructure* p
     // 进行上游节点是否正确转发的校验
     verification_result = proof_verification(icing_header, pvs);
     if(verification_result){
-        LOG_WITH_PREFIX("verification succeed");
+        // 为了进行实验, 暂时注释掉
+        // LOG_WITH_PREFIX("verification succeed");
         // 当校验成功之后, 判断是否需要向上进行交付
         if (current_node_id == destination){
             result = NET_RX_SUCCESS;

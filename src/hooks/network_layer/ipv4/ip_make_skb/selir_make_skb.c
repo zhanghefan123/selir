@@ -105,7 +105,7 @@ static void fill_ppf_fields(struct SELiRHeader *selir_header,
         for (inner_index = 0; inner_index < rte->path_length; inner_index++) {
             // int intermediate_node = rte->node_ids[inner_index]; // 拿到中间节点
             unsigned char* session_key = pvss->session_keys[inner_index]; // session_key 会话密钥
-            print_memory_in_hex(session_key, HMAC_OUTPUT_LENGTH); // 打印 session_key
+            // print_memory_in_hex(session_key, HMAC_OUTPUT_LENGTH); // 打印 session_key
             // snprintf(symmetric_key, sizeof(symmetric_key), "key-%d-%d", current_node_id, intermediate_node); // 对称密钥
             unsigned char *hmac_result = calculate_hmac(pvs->hmac_api,
                                                         static_fields_hash,
