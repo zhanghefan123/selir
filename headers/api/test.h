@@ -18,6 +18,8 @@
 #define OPT_ESTABLISH_VERSION_NUMBER 8
 #define OPT_DATA_VERSION_NUMBER 9
 #define SELIR_VERSION_NUMBER 10
+#define SELIR_ESTABLISH_VERSION_NUMBER 11
+#define SELIR_DATA_VERSION_NUMBER 12
 
 void test_apis(void);
 int resolve_socket_type(struct sock* sk);

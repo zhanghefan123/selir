@@ -9,6 +9,7 @@
 #include <uapi/linux/types.h>
 #include <linux/byteorder/little_endian.h>
 #include "structure/crypto/crypto_structure.h"
+#include "structure/header/common_part.h"
 
 struct SELiRInfo {
     // pvf 有效位数
@@ -17,12 +18,12 @@ struct SELiRInfo {
     int pvf_effective_bytes;
 };
 
-static inline struct SELiRInfo* init_selir_info(void){
-    return (struct SELiRInfo*)(kmalloc(sizeof(struct SELiRInfo), GFP_KERNEL));
+static inline struct SELiRInfo *init_selir_info(void) {
+    return (struct SELiRInfo *) (kmalloc(sizeof(struct SELiRInfo), GFP_KERNEL));
 }
 
-static inline void free_selir_info(struct SELiRInfo* selir_info){
-    if(NULL != selir_info){
+static inline void free_selir_info(struct SELiRInfo *selir_info) {
+    if (NULL != selir_info) {
         kfree(selir_info);
     }
 }
@@ -49,31 +50,67 @@ struct SELiRHeader {
     __sum16 check;          // 校验和 字段7
 };
 
-struct SELiRPvf{
+struct SELiRPvf {
     char data[16]; // 这里模仿的是 opt
 };
 
 // selir 数据包的结构
-// header / pvf_bitset / ppf_bitset / destinations
+// data_packet header header / datahash / sessionid / timestamp / pvf_bitset / ppf_bitset /destinations
 
-static inline struct SELiRHeader* selir_hdr(const struct sk_buff* skb){
-    return (struct SELiRHeader*)(skb_network_header(skb));
+static inline struct SELiRHeader *selir_hdr(const struct sk_buff *skb) {
+    return (struct SELiRHeader *) (skb_network_header(skb));
 }
 
-static inline unsigned char* get_selir_pvf_start_pointer(struct SELiRHeader* selir_header){
-    return (unsigned char*)(selir_header) + sizeof(struct SELiRHeader);
+// 获取 pvf 起始指针
+// ------------------------------------------------------------------------------------------------------------
+static inline unsigned char *get_selir_hash_start_pointer(struct SELiRHeader *selir_header) {
+    return (unsigned char *) (selir_header) +
+           sizeof(struct SELiRHeader);
 }
 
-static inline unsigned char* get_selir_ppf_start_pointer(struct SELiRHeader* selir_header){
-    return (unsigned char*)(selir_header) + sizeof(struct SELiRHeader) + sizeof(struct SELiRPvf);
+static inline unsigned char *get_selir_session_id_start_pointer(struct SELiRHeader *selir_header) {
+    return (unsigned char *) (selir_header) +
+           sizeof(struct SELiRHeader) +
+           sizeof(struct DataHash);
 }
 
-static inline unsigned char* get_selir_dest_start_pointer(struct SELiRHeader* selir_header, int ppf_length){
-    return (unsigned char*)(selir_header) + sizeof(struct SELiRHeader) + sizeof(struct SELiRPvf) + ppf_length;
+static inline unsigned char *get_selir_timestamp_start_pointer(struct SELiRHeader *selir_header) {
+    return (unsigned char *) (selir_header) +
+           sizeof(struct SELiRHeader) +
+           sizeof(struct DataHash) +
+           sizeof(struct SessionID);
 }
 
-unsigned char* calculate_selir_hash(struct shash_desc* hash_api, struct SELiRHeader* selir_header);
+static inline unsigned char *get_selir_pvf_start_pointer(struct SELiRHeader *selir_header) {
+    return (unsigned char *) (selir_header) +
+           sizeof(struct SELiRHeader) +
+           sizeof(struct DataHash) +
+           sizeof(struct SessionID) +
+           sizeof(struct TimeStamp);
+}
 
-void PRINT_SELIR_HEADER(struct SELiRHeader* seh);
+static inline unsigned char *get_selir_ppf_start_pointer(struct SELiRHeader *selir_header) {
+    return (unsigned char *) (selir_header) +
+           sizeof(struct SELiRHeader) +
+           sizeof(struct DataHash) +
+           sizeof(struct SessionID) +
+           sizeof(struct TimeStamp) +
+           sizeof(struct SELiRPvf);
+}
+
+static inline unsigned char *get_selir_dest_start_pointer(struct SELiRHeader *selir_header, int ppf_length) {
+    return (unsigned char *) (selir_header) +
+           sizeof(struct SELiRHeader) +
+           sizeof(struct DataHash) +
+           sizeof(struct SessionID) +
+           sizeof(struct TimeStamp) +
+           sizeof(struct SELiRPvf) +
+           ppf_length;
+}
+// ------------------------------------------------------------------------------------------------------------
+
+unsigned char *calculate_selir_hash(struct shash_desc *hash_api, struct SELiRHeader *selir_header);
+
+void PRINT_SELIR_HEADER(struct SELiRHeader *seh);
 
 #endif // PATH_VALIDATION_MODULE_SELIR_HEADER_H

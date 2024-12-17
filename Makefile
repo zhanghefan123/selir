@@ -49,6 +49,7 @@ pvm-objs := \
 	src/hooks/network_layer/ipv4/ip_make_skb/icing_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_make_skb/opt_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_make_skb/selir_make_skb.o \
+	src/hooks/network_layer/ipv4/ip_make_skb/session_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_output/impl.o \
 	src/hooks/network_layer/ipv4/ip_rcv/selir_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/lir_rcv.o \
@@ -76,8 +77,8 @@ pvm-objs := \
 OUTPUT_DIR = "./build"
 
 # 这个必须要是 headers 的绝对路径才能行
-ccflags-y += -I/home/zhf/Projects/srv6/linux/path_validation_module/headers
-#ccflags-y += -I/home/zhf/Projects/linux/selir/headers
+#ccflags-y += -I/home/zhf/Projects/srv6/linux/path_validation_module/headers
+ccflags-y += -I/home/zhf/Projects/linux/selir/headers
 
 
 all: compile

@@ -285,17 +285,32 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
             skb = self_defined_icing_make_skb(sk, fl4, getfrag, msg, ulen,
                                               sizeof(struct udphdr), &ipc,
                                               &cork, msg->msg_flags, rcr);
-        } else if (OPT_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
-            skb = self_defined_opt_make_skb(sk, fl4, getfrag, msg, ulen,
-                                            sizeof(struct udphdr), &ipc,
-                                            &cork, msg->msg_flags, rcr);
-        } else if (SELIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
-            skb = self_defined_selir_make_skb(sk, fl4, getfrag, msg, ulen,
-                                              sizeof(struct udphdr), &ipc,
-                                              &cork, msg->msg_flags, rcr);
         } else {
-            LOG_WITH_PREFIX("unsupported protocol");
-            return -EINVAL;
+            // 首先判断是否已经 sent_first_packet
+            bool sent_first_packet;
+            if(NULL == sk->path_validation_sock_structure){
+                sent_first_packet = false;
+            } else {
+                sent_first_packet = true;
+            }
+            if(sent_first_packet){ // 如果已经进行了会话的建立
+                if (OPT_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
+                    skb = self_defined_opt_make_skb(sk, fl4, getfrag, msg, ulen,
+                                                    sizeof(struct udphdr), &ipc,
+                                                    &cork, msg->msg_flags, rcr);
+                } else if (SELIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
+                    skb = self_defined_selir_make_skb(sk, fl4, getfrag, msg, ulen,
+                                                      sizeof(struct udphdr), &ipc,
+                                                      &cork, msg->msg_flags, rcr);
+                } else {
+                    LOG_WITH_PREFIX("unsupported protocol");
+                    return -EINVAL;
+                }
+            } else { // 如果尚且还没有进行会话的建立
+                skb = self_defined_session_make_skb(sk, fl4, getfrag, msg, ulen,
+                                                    sizeof(struct udphdr), &ipc,
+                                                    &cork, msg->msg_flags, rcr);
+            }
         }
         // ------------------------------------------------------------------------------
         // 添加 udp 首部进行发送

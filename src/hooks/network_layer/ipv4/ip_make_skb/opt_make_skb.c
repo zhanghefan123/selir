@@ -15,91 +15,20 @@
  * @param sent_first_packet 是否已经发送过了第一个包
  * @return 数据包的大小
  */
-static int get_opt_header_size(struct RoutingCalcRes *rcr, bool sent_first_packet) {
+static int get_opt_header_size(struct RoutingCalcRes *rcr) {
     // 拿到唯一的路由条目
     struct RoutingTableEntry *rte = rcr->rtes[0];
     // 拿到路径
     int path_length = rte->path_length;
-    if (!sent_first_packet) {
-        // 如果尚未发送第一个包  ---> 包的组成格式: opt_header | session_id | path_length | path
-        return sizeof(struct OptHeader) + sizeof(struct SessionID) + sizeof(struct PathLength) +
-               path_length * sizeof(struct OptHop);
-    } else {
-        // 如果已经发送第一个包  ---> 包的组成格式: opt_header | data_hash | session_id | timestamp | pvf | opvs
-        return sizeof(struct OptHeader) +
-               sizeof(struct DataHash) +
-               sizeof(struct SessionID) +
-               sizeof(struct TimeStamp) +
-               sizeof(struct OptPvf) +
-               sizeof(struct OptOpv) * path_length;
-    }
+    // 包的组成格式: opt_header | data_hash | session_id | timestamp | pvf | opvs
+    return sizeof(struct OptHeader) +
+           sizeof(struct DataHash) +
+           sizeof(struct SessionID) +
+           sizeof(struct TimeStamp) +
+           sizeof(struct OptPvf) +
+           sizeof(struct OptOpv) * path_length;
 }
 
-/**
- * 进行第一个包的 session_id 的填充
- * @param opt_header
- * @param session_id
- */
-static void fill_first_packet_session_id(struct OptHeader *opt_header, struct SessionID session_id) {
-    // 获取 session_id 起始 pointer
-    unsigned char *session_id_start_pointer = get_first_opt_session_id_pointer(opt_header);
-    // 拷贝 session_id 到起始 pointer
-    memcpy(session_id_start_pointer, &session_id, sizeof(struct SessionID));
-}
-
-/**
- * 填充第一个包的路径长度部分
- * @param opt_header opt 首部
- * @param path_length 路径长度
- */
-static void fill_first_packet_path_length(struct OptHeader *opt_header, int path_length) {
-    // 获取路径长度起始 pointer
-    __u16 * path_length_start_pointer = (__u16 *) (get_first_opt_path_length_start_pointer(opt_header));
-    // 进行路径长度的设置
-    *path_length_start_pointer = path_length;
-}
-
-/**
- * 进行 opt_path 的填充
- * @param opt_header opt 首部
- * @param rte 路由表项
- */
-static void fill_first_packet_opt_path(struct OptHeader *opt_header, struct RoutingTableEntry *rte) {
-    // 索引
-    int index;
-    // 路径起始字段
-    struct OptHop *path = (struct OptHop *) get_first_opt_path_start_pointer(opt_header);
-    // 路径长度
-    int path_length = rte->path_length;
-    // 进行路径的设置
-    for (index = 0; index < path_length; index++) {
-        // 当还没到达最后的节点的时候
-        if (index != (path_length - 1)) {
-            path[index].node_id = rte->node_ids[index];
-            path[index].link_id = rte->link_identifiers[index + 1];
-        } else { // 当已经是最后一个节点, 其没有链路标识了
-            path[index].node_id = rte->node_ids[index];
-            path[index].link_id = 0;
-        }
-    }
-}
-
-
-/**
- * 填充第一个包的标准首部后续部分
- * @param opt_header opt 首部
- * @param rte 路由表项
- * @param session_id 会话 id
- */
-static void
-fill_establish_packet_fields(struct OptHeader *opt_header, struct RoutingTableEntry *rte, struct SessionID session_id) {
-    // 进行第一个包的 session_id 的填充
-    fill_first_packet_session_id(opt_header, session_id);
-    // 进行第一个包的 path_length 的填充
-    fill_first_packet_path_length(opt_header, rte->path_length);
-    // 进行第一个包的 opt_path 的填充
-    fill_first_packet_opt_path(opt_header, rte);
-}
 
 /**
  * 进行 data_hash, session_id 以及 timestamp 的填充
@@ -300,15 +229,6 @@ static unsigned char *calculate_session_id(struct shash_desc *hash_api,
 }
 
 
-static int get_opt_version(bool sent_first_packet) {
-    if (!sent_first_packet) {
-        return OPT_ESTABLISH_VERSION_NUMBER;
-    } else {
-        return OPT_DATA_VERSION_NUMBER;
-    }
-}
-
-
 struct sk_buff *self_defined_opt_make_skb(struct sock *sk,
                                           struct flowi4 *fl4,
                                           int getfrag(void *from, char *to, int offset,
@@ -332,18 +252,8 @@ struct sk_buff *self_defined_opt_make_skb(struct sock *sk,
         return ERR_PTR(err);
     }
 
-    // 判断是否发送了第一个数据包
-    // --------------------------------------------------
-    bool sent_first_packet;
-    if (NULL == sk->path_validation_sock_structure) {
-        sent_first_packet = false;
-    } else {
-        sent_first_packet = true;
-    }
-    // --------------------------------------------------
-
     // 进行包头的大小的获取, 不同类型的包不一样
-    int opt_header_size = get_opt_header_size(rcr, sent_first_packet);
+    int opt_header_size = get_opt_header_size(rcr);
 
     err = self_defined__xx_append_data(sk, fl4, &queue, cork,
                                        &current->task_frag, getfrag,
@@ -355,15 +265,14 @@ struct sk_buff *self_defined_opt_make_skb(struct sock *sk,
         return ERR_PTR(err);
     }
 
-    return self_defined__opt_make_skb(sk, fl4, &queue, cork, rcr, sent_first_packet);
+    return self_defined__opt_make_skb(sk, fl4, &queue, cork, rcr);
 }
 
 struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
                                            struct flowi4 *fl4,
                                            struct sk_buff_head *queue,
                                            struct inet_cork *cork,
-                                           struct RoutingCalcRes *rcr,
-                                           bool sent_first_packet) {
+                                           struct RoutingCalcRes *rcr) {
     struct sk_buff *skb, *tmp_skb;
     struct sk_buff **tail_skb;
     struct inet_sock *inet = inet_sk(sk);
@@ -404,7 +313,7 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     // 头部基本部分填充
     // ---------------------------------------------------------------------------------------
     opt_header = opt_hdr(skb);
-    opt_header->version = get_opt_version(sent_first_packet); // 版本 (字段1)
+    opt_header->version = OPT_DATA_VERSION_NUMBER; // 版本 (字段1)
     opt_header->tos = (cork->tos != -1) ? cork->tos : inet->tos; // tos type_of_service (字段2)
     opt_header->ttl = ttl; // ttl (字段3)
     opt_header->protocol = sk->sk_protocol; // 上层协议 (字段4)
@@ -413,39 +322,22 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     opt_header->check = 0; // 校验和字段 (字段7)
     opt_header->source = rcr->source; // 设置源 (字段8)
     opt_header->dest = rcr->user_space_info->destinations[0]; // 设置目的 (字段9)
-    opt_header->hdr_len = get_opt_header_size(rcr, sent_first_packet); // 设置数据包总长度 (字段10)
+    opt_header->hdr_len = get_opt_header_size(rcr); // 设置数据包总长度 (字段10)
     opt_header->tot_len = htons(skb->len);// tot_len 字段 11 (等待后面进行赋值)
     opt_header->current_path_index = 0; // 当前的索引 (字段12)
     // ---------------------------------------------------------------------------------------
 
-
-
-    // 计算 session_id -> 利用 source / link_identifiers / node_ids / timestamp
+    // 直接从 sock 之中所包村的 path_validation_sock_structure 之中拿到 session_id
     // ---------------------------------------------------------------------------------------
     struct SessionID session_id;
-    if (!sent_first_packet) {
-        time64_t current_time_stamp = ktime_get_seconds(); // 进行当前时间的获取
-        unsigned char *hash_value = calculate_session_id(pvs->hash_api, rcr, rte,current_time_stamp); // 这里的 session_id 是 20 字节的, 实际只需要 16 字节
-        memcpy(&session_id, hash_value, SESSION_ID_LENGTH);
-        kfree(hash_value);
-        printk(KERN_EMERG "make skb session_id: %llu %llu\n", session_id.first_part, session_id.second_part);
-    } else {
-        session_id = ((struct PathValidationSockStructure *) (sk->path_validation_sock_structure))->session_id; // 从 socket 之中直接拿到 session_id
-    }
+    session_id = ((struct PathValidationSockStructure *) (sk->path_validation_sock_structure))->session_id; // 从 socket 之中直接拿到 session_id
     // ---------------------------------------------------------------------------------------
-
-
 
     // 头部后续部分初始化
     // ---------------------------------------------------------------------------------------
-    // 1. 如果尚未发送第一个包
-    if (!sent_first_packet) {
-        fill_establish_packet_fields(opt_header, rcr->rtes[0], session_id);
-    } else { // 2. 如果已经发送第一个包
-        // 拿到 path_validation_sock_structure
-        struct PathValidationSockStructure *pvss = (struct PathValidationSockStructure *) (sk->path_validation_sock_structure);
-        fill_data_packet_fields(opt_header, rcr->rtes[0], pvs, pvss);
-    }
+    // 拿到 path_validation_sock_structure
+    struct PathValidationSockStructure *pvss = (struct PathValidationSockStructure *) (sk->path_validation_sock_structure);
+    fill_data_packet_fields(opt_header, rcr->rtes[0], pvs, pvss);
     // ---------------------------------------------------------------------------------------
 
     // 等待一切就绪后计算 check
@@ -454,35 +346,6 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     skb->mark = cork->mark;
     skb->tstamp = cork->transmit_time;
     skb->protocol = htons(ETH_P_IP);
-
-    // 当发送完成之后修改 sent_first_packet 的状态
-    // 本来下面的代码是想放在 opt_make_skb 之后的, 但是由于要计算 session_id 还是算了
-    // ------------------------------------------------------------------------------
-    if (NULL == sk->path_validation_sock_structure) {
-        // 进行结构的初始化
-        struct PathValidationSockStructure *pvss = init_pvss();
-        pvss->sent_first_packet = true;
-        pvss->session_id = session_id;
-        pvss->timestamp = ktime_get_seconds();
-        pvss->session_keys = (unsigned char**) (kmalloc(sizeof(unsigned char *) * rte->path_length, GFP_KERNEL)); // 为指针进行内存的分配
-        sk->path_validation_sock_structure = (void *) (pvss);
-        int index;
-        char secret_value[20];
-        for (index = 0; index < rte->path_length; index++) {
-            int node_id = rte->node_ids[index];
-            // 对 session id 做一次 hmac 的到 key 使用的 key 为 key-%d
-            snprintf(secret_value, sizeof(secret_value), "key-%d", node_id);
-            // 计算 session_key
-            unsigned char *session_key = calculate_hmac(pvs->hmac_api,
-                                                        (unsigned char *) (&session_id),
-                                                        sizeof(struct SessionID),
-                                                        (unsigned char *) (secret_value),
-                                                        (int) (strlen(secret_value))); // 注意使用 strlen 的地方, 如果末尾没有 \0 空字符就会很长, 这里是可以使用的, 因为 secret_value 就是字符串
-            // 将 session_key 放到指定的位置
-            pvss->session_keys[index] = session_key;
-        }
-    }
-    // ------------------------------------------------------------------------------
 
     out:
     return skb;

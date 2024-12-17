@@ -3,6 +3,7 @@
 //
 #include <net/ip.h>
 #include "structure/crypto/crypto_structure.h"
+#include "structure/header/common_part.h"
 
 #ifndef PATH_VALIDATION_MODULE_OPT_HEADER_H
 #define PATH_VALIDATION_MODULE_OPT_HEADER_H
@@ -64,24 +65,6 @@ struct OptHop {
     __u16 link_id;  // 链路标识
 };
 
-
-// DataHash
-struct DataHash {
-    uint64_t first_part; // 8 字节
-    uint64_t second_part; // 8 字节
-};
-
-// 会话 id
-struct SessionID {
-    uint64_t first_part;  // 8 字节
-    uint64_t second_part; // 8 字节
-};
-
-// 时间戳
-struct TimeStamp {
-    char data[8];
-};
-
 // OPT PVF
 struct OptPvf {
     char data[16];
@@ -99,16 +82,22 @@ static inline struct OptHeader *opt_hdr(const struct sk_buff *skb) {
 // 第一个包
 // ------------------------------------------------------------------------------------------------------------
 
-static inline unsigned char* get_first_opt_session_id_pointer(struct OptHeader* opt_header) {
-    return (unsigned char*) (opt_header) + sizeof(struct OptHeader);
+static inline unsigned char *get_first_opt_session_id_pointer(struct OptHeader *opt_header) {
+    return (unsigned char *) (opt_header) +
+           sizeof(struct OptHeader);
 }
 
-static inline unsigned char *get_first_opt_path_length_start_pointer(struct OptHeader* opt_header){
-    return (unsigned char *) (opt_header) + sizeof(struct OptHeader) + sizeof(struct SessionID);
+static inline unsigned char *get_first_opt_path_length_start_pointer(struct OptHeader *opt_header) {
+    return (unsigned char *) (opt_header) +
+           sizeof(struct OptHeader) +
+           sizeof(struct SessionID);
 }
 
 static inline unsigned char *get_first_opt_path_start_pointer(struct OptHeader *opt_header) {
-    return (unsigned char *) (opt_header) + sizeof(struct OptHeader) + sizeof(struct SessionID) + sizeof(struct PathLength);
+    return (unsigned char *) (opt_header) +
+           sizeof(struct OptHeader) +
+           sizeof(struct SessionID) +
+           sizeof(struct PathLength);
 }
 
 // ------------------------------------------------------------------------------------------------------------
@@ -116,16 +105,22 @@ static inline unsigned char *get_first_opt_path_start_pointer(struct OptHeader *
 
 // 其他的包
 // ------------------------------------------------------------------------------------------------------------
-static inline unsigned char *get_other_opt_hash_start_pointer(struct OptHeader* opt_header){
-    return (unsigned char*) (opt_header) + sizeof(struct OptHeader);
+static inline unsigned char *get_other_opt_hash_start_pointer(struct OptHeader *opt_header) {
+    return (unsigned char *) (opt_header) +
+           sizeof(struct OptHeader);
 }
 
-static inline unsigned char *get_other_opt_session_id_start_pointer(struct OptHeader* opt_header){
-    return (unsigned char*) (opt_header) + sizeof(struct OptHeader) + sizeof(struct DataHash);
+static inline unsigned char *get_other_opt_session_id_start_pointer(struct OptHeader *opt_header) {
+    return (unsigned char *) (opt_header) +
+           sizeof(struct OptHeader) +
+           sizeof(struct DataHash);
 }
 
-static inline unsigned char* get_other_opt_timestamp_start_pointer(struct OptHeader* opt_header){
-    return (unsigned char*) (opt_header) + sizeof(struct OptHeader) + sizeof(struct DataHash) + sizeof(struct SessionID);
+static inline unsigned char *get_other_opt_timestamp_start_pointer(struct OptHeader *opt_header) {
+    return (unsigned char *) (opt_header) +
+           sizeof(struct OptHeader) +
+           sizeof(struct DataHash) +
+           sizeof(struct SessionID);
 }
 
 static inline unsigned char *get_other_opt_pvf_start_pointer(struct OptHeader *opt_header) {

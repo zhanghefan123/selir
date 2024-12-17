@@ -1,6 +1,7 @@
 #include "api/test.h"
 #include "structure/namespace/namespace.h"
 #include "structure/routing/routing_calc_res.h"
+#include "structure/path_validation_sock_structure.h"
 #include "hooks/network_layer/ipv4/ip_send_check/ip_send_check.h"
 #include "hooks/network_layer/ipv4/ip_make_skb/ip_make_skb.h"
 #include "hooks/network_layer/ipv4/ip_setup_cork/ip_setup_cork.h"
@@ -15,12 +16,16 @@
  * @return
  */
 static int get_selir_header_size(struct RoutingCalcRes *rcr, struct PathValidationStructure *pvs) {
+    // 如果已经发送包 ---> 包的组成格式: header / datahash / sessionid / timestamp / pvf_bitset / ppf_bitset /destinations
     return sizeof(struct SELiRHeader) +
+           sizeof(struct SELiRPvf) +
+           sizeof(struct DataHash) +
+           sizeof(struct SessionID) +
+           sizeof(struct TimeStamp) +
            sizeof(struct SELiRPvf) +
            pvs->bloom_filter->bf_effective_bytes +
            rcr->user_space_info->number_of_destinations;
 }
-
 
 struct sk_buff *self_defined_selir_make_skb(struct sock *sk,
                                             struct flowi4 *fl4,
@@ -62,6 +67,7 @@ struct sk_buff *self_defined_selir_make_skb(struct sock *sk,
     return self_defined__selir_make_skb(sk, fl4, &queue, cork, rcr);
 }
 
+
 /**
  * 进行 pvf 字段的填充
  * @param selir_header selir 首部
@@ -76,18 +82,20 @@ static void fill_pvf_fields(struct SELiRHeader *selir_header) {
 
 static void fill_ppf_fields(struct SELiRHeader *selir_header,
                             struct RoutingCalcRes *rcr,
-                            struct PathValidationStructure *pvs) {
+                            struct PathValidationStructure *pvs,
+                            struct PathValidationSockStructure* pvss) {
     // 索引
     int index;
+    // 内在索引
     int inner_index;
     // 计算静态字段的哈希
     unsigned char *static_fields_hash = calculate_selir_hash(pvs->hash_api, selir_header);
     // 获取 ppf 起始的指针
     unsigned char *ppf_start_pointer = get_selir_ppf_start_pointer(selir_header);
     // 对称密钥
-    char symmetric_key[20];
+    // char symmetric_key[20];
     // 获取当前节点的 id
-    int current_node_id = pvs->node_id;
+    // int current_node_id = pvs->node_id;
     // 进行所有的路由条目的遍历 (现在还是只能支持一个 destination)
     unsigned char final_insert_element[16] = {0};
     // 循环进行每一条路由的处理, 但是这里只能处理一条路由, 后续可以进行更新
@@ -95,18 +103,21 @@ static void fill_ppf_fields(struct SELiRHeader *selir_header,
         // 拿到路由条目 -> 如果是第一条则对应的是 source->primary
         struct RoutingTableEntry *rte = rcr->rtes[index];
         for (inner_index = 0; inner_index < rte->path_length; inner_index++) {
-            int intermediate_node = rte->node_ids[inner_index]; // 拿到中间节点
-            snprintf(symmetric_key, sizeof(symmetric_key), "key-%d-%d", current_node_id, intermediate_node); // 对称密钥
+            // int intermediate_node = rte->node_ids[inner_index]; // 拿到中间节点
+            unsigned char* session_key = pvss->session_keys[inner_index]; // session_key 会话密钥
+            print_memory_in_hex(session_key, HMAC_OUTPUT_LENGTH); // 打印 session_key
+            // snprintf(symmetric_key, sizeof(symmetric_key), "key-%d-%d", current_node_id, intermediate_node); // 对称密钥
             unsigned char *hmac_result = calculate_hmac(pvs->hmac_api,
                                                         static_fields_hash,
                                                         HASH_OUTPUT_LENGTH,
-                                                        (unsigned char *) symmetric_key,
-                                                        (int) (strlen(symmetric_key)));
+                                                         session_key,
+                                                        HMAC_OUTPUT_LENGTH);
 
             // 进行和 hmac 的异或
             int temp;
             for (temp = 0; temp < 2; temp++) {
-                (*((u64 *) final_insert_element + temp)) = (*((u64 *) final_insert_element + temp)) ^ (*((u64 *) (hmac_result) + temp));
+                (*((u64 *) final_insert_element + temp)) =
+                        (*((u64 *) final_insert_element + temp)) ^ (*((u64 *) (hmac_result) + temp));
             }
 
             // 进行和链路标识的异或
@@ -147,6 +158,19 @@ static void fill_destination_fields(struct SELiRHeader *selir_header,
     for (index = 0; index < user_space_info->number_of_destinations; index++) {
         destination_start_pointer[index] = user_space_info->destinations[index];
     }
+}
+
+
+static void fill_meta_data(struct SELiRHeader *selir_header,
+                           unsigned char *static_fields_hash,
+                           struct SessionID session_id,
+                           time64_t timestamp) {
+    unsigned char *hash_start_pointer = get_selir_hash_start_pointer(selir_header);
+    unsigned char *session_id_start_pointer = get_selir_session_id_start_pointer(selir_header);
+    unsigned char *timestamp_start_pointer = get_selir_timestamp_start_pointer(selir_header);
+    memcpy(hash_start_pointer, static_fields_hash, HASH_LENGTH);
+    memcpy(session_id_start_pointer, &session_id, sizeof(struct SessionID));
+    memcpy(timestamp_start_pointer, &(timestamp), sizeof(time64_t));
 }
 
 struct sk_buff *self_defined__selir_make_skb(struct sock *sk, struct flowi4 *fl4,
@@ -207,22 +231,22 @@ struct sk_buff *self_defined__selir_make_skb(struct sock *sk, struct flowi4 *fl4
     selir_header->dest_len = rcr->user_space_info->number_of_destinations; // 目的数量
     // ---------------------------------------------------------------------------------------
 
-    // 填充 pvf 字段
+    // 填充其余的部分
     // ---------------------------------------------------------------------------------------
+    // 0. 拿到 pvss
+    struct PathValidationSockStructure* pvss = (struct PathValidationSockStructure*)(sk->path_validation_sock_structure);
+    // 1. 首先计算哈希
+    unsigned char* static_fields_hash = calculate_selir_hash(pvs->hash_api, selir_header);
+    // 2. 进行元数据的填充
+    fill_meta_data(selir_header, static_fields_hash, pvss->session_id, pvss->timestamp);
+    // 3. 填充 pvf 字段
     fill_pvf_fields(selir_header);
-    // ---------------------------------------------------------------------------------------
-
-    // 填充 ppf 字段
-    // ---------------------------------------------------------------------------------------
-    fill_ppf_fields(selir_header, rcr, pvs);
-    // ---------------------------------------------------------------------------------------
-
-    // 填充目的字段
-    // ---------------------------------------------------------------------------------------
+    // 4. 填充 ppf 字段
+    fill_ppf_fields(selir_header, rcr, pvs, pvss);
+    // 5. 填充目的字段
     fill_destination_fields(selir_header,
                             pvs->bloom_filter->bf_effective_bytes,
                             rcr->user_space_info);
-    // ---------------------------------------------------------------------------------------
 
     // 等待一切就绪之后计算 selir_send_check
     // ---------------------------------------------------------------------------------------

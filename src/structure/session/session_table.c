@@ -11,7 +11,9 @@
  */
 struct SessionTableEntry *init_ste_in_dest(struct SessionID *session_id,
                                            int encrypt_count,
-                                           int previous_node) {
+                                           int previous_node,
+                                           int path_length,
+                                           unsigned char* session_key) {
     struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
     ste->session_id.first_part = session_id->first_part;
     ste->session_id.second_part = session_id->second_part;
@@ -20,11 +22,15 @@ struct SessionTableEntry *init_ste_in_dest(struct SessionID *session_id,
     ste->output_interface = NULL;
     ste->previous_node = previous_node;
     ste->session_keys = (unsigned char**) (kmalloc(sizeof(unsigned char *) * encrypt_count, GFP_KERNEL));
+    ste->path_length = path_length;
+    ste->opt_hops = (struct OptHop*)(kmalloc(sizeof(struct OptHop) * path_length, GFP_KERNEL));
+    ste->session_key = session_key;
     return ste;
 }
 
 struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *session_id,
                                                    struct net_device *output_interface,
+                                                   unsigned char* session_key,
                                                    int previous_node) {
     struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
     ste->session_id.first_part = session_id->first_part;
@@ -34,6 +40,7 @@ struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *session_id,
     ste->output_interface = output_interface;
     ste->previous_node = previous_node;
     ste->session_keys = NULL;
+    ste->session_key = session_key;
     return ste;
 }
 
