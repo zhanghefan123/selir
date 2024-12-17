@@ -20,10 +20,7 @@ int opt_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
         LOG_WITH_PREFIX("skb == NULL");
         return 0;
     }
-    // 3. 进行数据包的打印
-    // 先注释
-    // PRINT_OPT_HEADER(opt_header);
-    // 4. 进行不同的数据包的处理
+    // 3. 进行不同的数据包的处理
     if (OPT_ESTABLISH_VERSION_NUMBER == opt_header->version) {
         process_result = opt_forward_session_establish_packets(skb, pvs, current_ns, orig_dev);
     } else if (OPT_DATA_VERSION_NUMBER == opt_header->version) {
@@ -35,13 +32,10 @@ int opt_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
     }
     // 5. 进行数据包本地的处理
     if (NET_RX_SUCCESS == process_result) {
-        // 为了进行实验, 暂时注释掉
-        // LOG_WITH_PREFIX("local deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
         pv_local_deliver(skb, opt_header->protocol, receive_interface_address);
         return 0;
     } else if (NET_RX_DROP == process_result) {
-        // LOG_WITH_PREFIX("packet drop");
         kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
         return 0;
     } else {
@@ -382,10 +376,6 @@ static int destination_process_data_packets(struct OptHeader *opt_header,
                                  PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t),
                                  ste->session_keys[0],
                                  HMAC_OUTPUT_LENGTH);
-
-//    printk(KERN_EMERG "combination and final");
-//    print_memory_in_hex(combination, PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t));
-//    print_memory_in_hex((unsigned char*)(&(opvs[opt_header->current_path_index])), OPV_LENGTH);
 
     bool opv_result = memory_compare((unsigned char *) (&(opvs[opt_header->current_path_index])), hmac_result,
                                      OPV_LENGTH);

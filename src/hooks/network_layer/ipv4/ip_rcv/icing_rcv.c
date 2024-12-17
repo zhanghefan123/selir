@@ -8,11 +8,11 @@
 #include <net/inet_ecn.h>
 #include <linux/inetdevice.h>
 
-int icing_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev){
+int icing_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev) {
     // 1. 初始化变量
-    struct net* net = dev_net(dev);
-    struct ICINGHeader* icing_header = icing_hdr(skb);
-    struct PathValidationStructure* pvs = get_pvs_from_ns(net);
+    struct net *net = dev_net(dev);
+    struct ICINGHeader *icing_header = icing_hdr(skb);
+    struct PathValidationStructure *pvs = get_pvs_from_ns(net);
     int process_result;
     // 2. 进行消息的打印
     // 为了实验进行暂时的注释
@@ -22,7 +22,7 @@ int icing_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p
     // 4. 进行实际的转发
     process_result = icing_forward_packets(skb, pvs, net, orig_dev);
     // 5. 判断是进行本地交付还是直接丢弃
-    if(NET_RX_SUCCESS == process_result){
+    if (NET_RX_SUCCESS == process_result) {
         // 为了实验, 暂时注释掉
         // LOG_WITH_PREFIX("local_deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
@@ -36,7 +36,7 @@ int icing_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p
     return 0;
 }
 
-struct sk_buff* icing_rcv_validate(struct sk_buff*skb, struct net* net){
+struct sk_buff *icing_rcv_validate(struct sk_buff *skb, struct net *net) {
     // 获取头部
     const struct ICINGHeader *icing_header;
     // 丢包的原因
@@ -100,8 +100,7 @@ struct sk_buff* icing_rcv_validate(struct sk_buff*skb, struct net* net){
     icing_header = icing_hdr(skb);
 
     // 如果校验和不正确的话, goto csum_error
-    if (unlikely(ip_fast_csum((u8 *)icing_header, icing_header->hdr_len / 4)))
-    {
+    if (unlikely(ip_fast_csum((u8 *) icing_header, icing_header->hdr_len / 4))) {
         LOG_WITH_PREFIX("csum error");
         goto csum_error;
     }
@@ -156,61 +155,72 @@ struct sk_buff* icing_rcv_validate(struct sk_buff*skb, struct net* net){
     return NULL;
 }
 
-static bool proof_verification(struct ICINGHeader* icing_header, struct PathValidationStructure* pvs) {
+static bool proof_verification(struct ICINGHeader *icing_header, struct PathValidationStructure *pvs) {
     // 1. 变量定义
     bool result;
     int index;
     int current_node_id = pvs->node_id;
     int current_path_index = icing_header->current_path_index;
     int source = icing_header->source;
-    struct shash_desc* hash_api = pvs->hash_api;
-    struct shash_desc* hmac_api = pvs->hmac_api;
-    struct ICINGHop* path = (struct ICINGHop*)(get_icing_path_start_pointer(icing_header));
-    struct ICINGProof* proof_list = (struct ICINGProof*)(get_icing_proof_start_pointer(icing_header));
+    struct shash_desc *hash_api = pvs->hash_api;
+    struct shash_desc *hmac_api = pvs->hmac_api;
+    struct ICINGHop *path = (struct ICINGHop *) (get_icing_path_start_pointer(icing_header));
+    struct ICINGProof *proof_list = (struct ICINGProof *) (get_icing_proof_start_pointer(icing_header));
     // 2.计算哈希
-    unsigned char* static_fields_hash = calculate_icing_hash(hash_api, icing_header);
+    unsigned char *static_fields_hash = calculate_icing_hash(hash_api, icing_header);
     // 3.进行校验
+    char key[20];
+    // 首先进行 ai 的计算
+    snprintf(key, sizeof(key), "poc-%d", pvs->node_id);
+    unsigned char *ai_result = calculate_hmac(pvs->hmac_api,
+                                              static_fields_hash,
+                                              HASH_OUTPUT_LENGTH,
+                                              (unsigned char *) key,
+                                              (int) strlen(key));
     // 首先计算源和当前节点的 hmac
-    char symmetric_key[20];
-    snprintf(symmetric_key, sizeof(symmetric_key), "key-%d-%d", source, current_node_id);
+    snprintf(key, sizeof(key), "key-%d-%d", source, current_node_id);
     unsigned char *hmac_result_final = calculate_hmac(hmac_api,
                                                       static_fields_hash,
                                                       HASH_OUTPUT_LENGTH,
-                                                      (unsigned char*)symmetric_key,
-                                                      (int)(strlen(symmetric_key)));
-    if(0 == current_path_index){
-        result = memory_compare((unsigned char*)(&proof_list[current_path_index]),
+                                                      (unsigned char *) key,
+                                                      (int) (strlen(key)));
+    // 将 ai 和 hmac 进行异或者
+    memory_xor(hmac_result_final, ai_result, ICING_PROOF_LENGTH);
+
+    if (0 == current_path_index) {
+        result = memory_compare((unsigned char *) (&proof_list[current_path_index]),
                                 hmac_result_final,
                                 ICING_PROOF_LENGTH);
     } else {
-        for(index = 0; index < current_path_index; index++){
+        for (index = 0; index < current_path_index; index++) {
             // 获取上游节点 id
             __u32 upstream_node = path[index].node_id;
-            snprintf(symmetric_key, sizeof(symmetric_key), "key-%d-%d", upstream_node, current_node_id);
+            snprintf(key, sizeof(key), "key-%d-%d", upstream_node, current_node_id);
             unsigned char *hmac_result_temp = calculate_hmac(hmac_api,
                                                              static_fields_hash,
                                                              HASH_OUTPUT_LENGTH,
-                                                             (unsigned char*)symmetric_key,
-                                                             (int)(strlen(symmetric_key)));
+                                                             (unsigned char *) key,
+                                                             (int) (strlen(key)));
             memory_xor(hmac_result_final, hmac_result_temp, ICING_PROOF_LENGTH);
             kfree(hmac_result_temp);
         }
-        result = memory_compare((unsigned char*)(&proof_list[current_path_index]),
+        result = memory_compare((unsigned char *) (&proof_list[current_path_index]),
                                 hmac_result_final,
                                 ICING_PROOF_LENGTH);
     }
+    kfree(ai_result);
     kfree(hmac_result_final);
     kfree(static_fields_hash);
     return result;
 }
 
-static void proof_update(struct ICINGHeader* icing_header, struct PathValidationStructure* pvs){
+static void proof_update(struct ICINGHeader *icing_header, struct PathValidationStructure *pvs) {
     // 索引
     int index;
     // 获取 hash api
-    struct shash_desc* hash_api = pvs->hash_api;
+    struct shash_desc *hash_api = pvs->hash_api;
     // 获取 hmac_api
-    struct shash_desc* hmac_api = pvs->hmac_api;
+    struct shash_desc *hmac_api = pvs->hmac_api;
     // 当前路径索引
     int current_path_index = icing_header->current_path_index;
     // 当前节点 id
@@ -218,45 +228,46 @@ static void proof_update(struct ICINGHeader* icing_header, struct PathValidation
     // 路径长度
     int path_length = icing_header->length_of_path;
     // 路径和验证字段列表
-    struct ICINGHop* path = (struct ICINGHop*)(get_icing_path_start_pointer(icing_header));
-    struct ICINGProof* proof_list = (struct ICINGProof*)(get_icing_proof_start_pointer(icing_header));
+    struct ICINGHop *path = (struct ICINGHop *) (get_icing_path_start_pointer(icing_header));
+    struct ICINGProof *proof_list = (struct ICINGProof *) (get_icing_proof_start_pointer(icing_header));
     // 获取静态字段的哈希
-    unsigned char* static_fields_hash = calculate_icing_hash(hash_api, icing_header);
+    unsigned char *static_fields_hash = calculate_icing_hash(hash_api, icing_header);
     // 对称密钥
     char symmetric_key[20];
     // 遍历更新下游节点的 proof 字段
-    for(index = current_path_index + 1; index < path_length; index++){
+    for (index = current_path_index + 1; index < path_length; index++) {
         int downstream_node_id = path[index].node_id;
         snprintf(symmetric_key, sizeof(symmetric_key), "key-%d-%d", current_node_id, downstream_node_id);
-        unsigned char* hmac_result = calculate_hmac(hmac_api,
+        unsigned char *hmac_result = calculate_hmac(hmac_api,
                                                     static_fields_hash,
                                                     HMAC_OUTPUT_LENGTH,
-                                                    (unsigned char*)symmetric_key,
-                                                    (int)(strlen(symmetric_key)));
-        memory_xor((unsigned char* )(&(proof_list[index])), hmac_result, ICING_PROOF_LENGTH);
+                                                    (unsigned char *) symmetric_key,
+                                                    (int) (strlen(symmetric_key)));
+        memory_xor((unsigned char *) (&(proof_list[index])), hmac_result, ICING_PROOF_LENGTH);
         kfree(hmac_result);
     }
     kfree(static_fields_hash);
 }
 
-int icing_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev){
+int icing_forward_packets(struct sk_buff *skb, struct PathValidationStructure *pvs, struct net *current_ns,
+                          struct net_device *in_dev) {
     // 初始化变量
     int index;
     int result = NET_RX_DROP;
     bool verification_result;
     int current_node_id = pvs->node_id;
-    struct ICINGHeader* icing_header = icing_hdr(skb);
+    struct ICINGHeader *icing_header = icing_hdr(skb);
     int destination = icing_header->dest;
-    struct ICINGHop* path = (struct ICINGHop*)get_icing_path_start_pointer(icing_header);
+    struct ICINGHop *path = (struct ICINGHop *) get_icing_path_start_pointer(icing_header);
     int current_path_index = icing_header->current_path_index;
     int current_link_identifier = path[current_path_index].link_id;
     // 进行上游节点是否正确转发的校验
     verification_result = proof_verification(icing_header, pvs);
-    if(verification_result){
+    if (verification_result) {
         // 为了进行实验, 暂时注释掉
         // LOG_WITH_PREFIX("verification succeed");
         // 当校验成功之后, 判断是否需要向上进行交付
-        if (current_node_id == destination){
+        if (current_node_id == destination) {
             result = NET_RX_SUCCESS;
         }
     } else {
@@ -271,11 +282,11 @@ int icing_forward_packets(struct sk_buff* skb, struct PathValidationStructure* p
     // 计算校验和
     icing_send_check(icing_header);
     // 更新完成之后遍历接口表准备进行数据包的发送
-    for(index = 0; index < pvs->abit->number_of_interfaces;index++){
-        struct InterfaceTableEntry* ite = pvs->abit->interfaces[index];
-        if(current_link_identifier == ite->link_identifier){
+    for (index = 0; index < pvs->abit->number_of_interfaces; index++) {
+        struct InterfaceTableEntry *ite = pvs->abit->interfaces[index];
+        if (current_link_identifier == ite->link_identifier) {
             // 进行拷贝
-            struct sk_buff* skb_copied = skb_copy(skb, GFP_KERNEL);
+            struct sk_buff *skb_copied = skb_copy(skb, GFP_KERNEL);
             // 进行转发
             pv_packet_forward(skb_copied, ite->interface, current_ns);
         }

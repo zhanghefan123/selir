@@ -88,6 +88,8 @@ static void fill_icing_expire(struct ICINGHeader* icing_header, struct RoutingTa
 static void fill_icing_validation(struct ICINGHeader* icing_header, struct RoutingTableEntry* rte, struct PathValidationStructure* pvs){
     // 索引
     int index;
+    // 内部索引
+    int inner_index;
     // 当前节点 id
     int current_node_id = pvs->node_id;
     // 路径长度
@@ -97,23 +99,50 @@ static void fill_icing_validation(struct ICINGHeader* icing_header, struct Routi
     // 进行路径部分内存分配以及填充
     // -------------------------------------------------------------------------------------
     // 1. 先进行静态哈希的计算
-    unsigned char* hash_result = calculate_icing_hash(pvs->hash_api, icing_header);
+    unsigned char* static_fields_hash = calculate_icing_hash(pvs->hash_api, icing_header);
     unsigned char* hmac_result = NULL;
+    unsigned char* ai_result = NULL;
     struct ICINGProof* proof_list = (struct ICINGProof*)(validation_start_pointer);
+
+    // 2. 进行 ai 的计算
+    char key[20];
     for(index = 0; index < path_length; index++){
         // 拿到中间节点的 id
         int on_path_node_id = rte->node_ids[index];
-        // 准备创建密钥
-        char symmetric_key[20];
-        snprintf(symmetric_key, sizeof(symmetric_key), "key-%d-%d", current_node_id, on_path_node_id);
+        // 获取 proof
+        snprintf(key, sizeof(key), "poc-%d", on_path_node_id);
+        // 准备计算 Ai
+        ai_result = calculate_hmac(pvs->hmac_api,
+                                   static_fields_hash,
+                                   HASH_OUTPUT_LENGTH,
+                                   (unsigned char*)key,
+                                   (int)strlen(key));
+        // 进行结果的拷贝
+        memcpy(&proof_list[index], ai_result, ICING_PROOF_LENGTH);
+
+        // 进行结果的释放
+        if(NULL != ai_result){
+            kfree(ai_result);
+        }
+    }
+
+    // 3. 进行 proof 的计算
+    for(index = 0; index < path_length; index++){
+        // 拿到中间节点的 id
+        int on_path_node_id = rte->node_ids[index];
+        snprintf(key, sizeof(key), "key-%d-%d", current_node_id, on_path_node_id);
         // 准备计算 hmac
         hmac_result = calculate_hmac(pvs->hmac_api,
-                                     hash_result,
+                                     static_fields_hash,
                                      HASH_OUTPUT_LENGTH,
-                                     (unsigned char*)symmetric_key,
-                                     (int)strlen(symmetric_key));
-        // 进行结果的拷贝
-        memcpy(&proof_list[index], hmac_result, ICING_PROOF_LENGTH);
+                                     (unsigned char*)key,
+                                     (int)strlen(key));
+
+        // 进行按位的异或
+        memory_xor( (unsigned char *)&proof_list[index], hmac_result, ICING_PROOF_LENGTH);
+
+        // 不再需要进行结果的拷贝
+        // memcpy(&proof_list[index], hmac_result, ICING_PROOF_LENGTH);
         // 进行 hmac 内存的释放
         if (NULL != hmac_result){
             kfree(hmac_result);
@@ -122,8 +151,8 @@ static void fill_icing_validation(struct ICINGHeader* icing_header, struct Routi
     // -------------------------------------------------------------------------------------
     // 进行内存的释放
     // -------------------------------------------------------------------------------------
-    if (NULL != hash_result){
-        kfree(hash_result);
+    if (NULL != static_fields_hash){
+        kfree(static_fields_hash);
     }
     // -------------------------------------------------------------------------------------
 }
