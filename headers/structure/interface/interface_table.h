@@ -12,6 +12,7 @@ struct InterfaceTableEntry {
     int index;
     int link_identifier; // 链路标识
     struct net_device *interface; // 对应的接口
+    __be32 peer_ip_address; // 对侧接口的 ip 地址
     unsigned char* bitset; // 将这个标识插入之后的布隆过滤器
 };
 // ----------------------------------------------------------------------------------------------

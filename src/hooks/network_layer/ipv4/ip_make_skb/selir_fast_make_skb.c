@@ -1,40 +1,36 @@
-#include "api/test.h"
+#include "tools/tools.h"
 #include "structure/namespace/namespace.h"
-#include "structure/routing/routing_calc_res.h"
-#include "structure/path_validation_sock_structure.h"
-#include "hooks/network_layer/ipv4/ip_send_check/ip_send_check.h"
 #include "hooks/network_layer/ipv4/ip_make_skb/ip_make_skb.h"
 #include "hooks/network_layer/ipv4/ip_setup_cork/ip_setup_cork.h"
+#include "structure/header/fast_selir_header.h"
+#include "structure/path_validation_sock_structure.h"
 #include "hooks/network_layer/ipv4/ip_append_data/ip_append_data.h"
 #include "hooks/network_layer/ipv4/ip_flush_pending_frames/ip_flush_pending_frames.h"
+#include "api/test.h"
+#include "hooks/network_layer/ipv4/ip_send_check/ip_send_check.h"
 
-/**
- * 进行 selir 头部的大小的获取
- * selir 头部构造如下 (标准头部) / (pvf_effective_bytes) / (bf_effective_bytes) / dest1 / dest2 ....
- * @param rcr 路由计算结果
- * @param pvs 路径验证结构体
- * @return
- */
-static int get_selir_header_size(struct RoutingCalcRes *rcr, struct PathValidationStructure *pvs) {
-    // 如果已经发送包 ---> 包的组成格式: header / datahash / sessionid / timestamp / pvf_bitset / ppf_bitset / destinations
-    return sizeof(struct SELiRHeader) +
+static int get_fast_selir_header_size(struct RoutingCalcRes *rcr, struct PathValidationStructure *pvs) {
+    return sizeof(struct FastSELiRHeader) +
            sizeof(struct SELiRPvf) +
            sizeof(struct DataHash) +
            sizeof(struct SessionID) +
            sizeof(struct TimeStamp) +
            sizeof(struct SELiRPvf) +
+           sizeof(struct EncPvf) +
            pvs->bloom_filter->bf_effective_bytes +
            rcr->user_space_info->number_of_destinations;
 }
 
-struct sk_buff *self_defined_selir_make_skb(struct sock *sk,
-                                            struct flowi4 *fl4,
-                                            int getfrag(void *from, char *to, int offset,
-                                                        int len, int odd, struct sk_buff *skb),
-                                            void *from, int length, int transhdrlen,
-                                            struct ipcm_cookie *ipc,
-                                            struct inet_cork *cork, unsigned int flags, struct RoutingCalcRes *rcr,
-                                            u64* encryption_time_elapsed) {
+
+struct sk_buff *self_defined_fast_selir_make_skb(struct sock *sk,
+                                                 struct flowi4 *fl4,
+                                                 int getfrag(void *from, char *to, int offset,
+                                                             int len, int odd, struct sk_buff *skb),
+                                                 void *from, int length, int transhdrlen,
+                                                 struct ipcm_cookie *ipc,
+                                                 struct inet_cork *cork, unsigned int flags,
+                                                 struct RoutingCalcRes *rcr,
+                                                 u64 *encryption_time_elapsed) {
     struct sk_buff_head queue;
     int err;
     struct net *current_ns = sock_net(sk);
@@ -53,7 +49,7 @@ struct sk_buff *self_defined_selir_make_skb(struct sock *sk,
         return ERR_PTR(err);
     }
 
-    int lir_header_size = get_selir_header_size(rcr, pvs);
+    int lir_header_size = get_fast_selir_header_size(rcr, pvs);
 
     err = self_defined__xx_append_data(sk, fl4, &queue, cork,
                                        &current->task_frag, getfrag,
@@ -65,7 +61,20 @@ struct sk_buff *self_defined_selir_make_skb(struct sock *sk,
         return ERR_PTR(err);
     }
 
-    return self_defined__selir_make_skb(sk, fl4, &queue, cork, rcr, encryption_time_elapsed);
+    return self_defined__fast_selir_make_skb(sk, fl4, &queue, cork, rcr, encryption_time_elapsed);
+}
+
+
+static void fill_meta_data(struct FastSELiRHeader *fast_selir_header,
+                           unsigned char *static_fields_hash,
+                           struct SessionID session_id,
+                           time64_t timestamp) {
+    unsigned char *hash_start_pointer = get_fast_selir_hash_start_pointer(fast_selir_header);
+    unsigned char *session_id_start_pointer = get_fast_selir_session_id_start_pointer(fast_selir_header);
+    unsigned char *timestamp_start_pointer = get_fast_selir_timestamp_start_pointer(fast_selir_header);
+    memcpy(hash_start_pointer, static_fields_hash, HASH_LENGTH);
+    memcpy(session_id_start_pointer, &session_id, sizeof(struct SessionID));
+    memcpy(timestamp_start_pointer, &(timestamp), sizeof(time64_t));
 }
 
 
@@ -89,11 +98,13 @@ static void fill_pvf_fields(struct shash_desc *hmac_api,
     kfree(pvf_hmac_result);
 }
 
-static void fill_ppf_for_single_route(struct RoutingTableEntry *rte,
-                                      struct PathValidationStructure *pvs,
-                                      struct PathValidationSockStructure *pvss,
-                                      unsigned char* pvf_start_pointer,
-                                      unsigned char* static_fields_hash) {
+static void fill_ppf_and_encpvf_for_single_route(struct RoutingTableEntry *rte,
+                                                 struct PathValidationStructure *pvs,
+                                                 struct PathValidationSockStructure *pvss,
+                                                 unsigned char *pvf_start_pointer,
+                                                 unsigned char *encpvf_start_pointer,
+                                                 unsigned char *ppf_start_pointer,
+                                                 unsigned char *static_fields_hash) {
 
     int index;
     // 首先计算一个 combination
@@ -102,7 +113,7 @@ static void fill_ppf_for_single_route(struct RoutingTableEntry *rte,
     memcpy(concatenation + PVF_LENGTH, static_fields_hash, HASH_OUTPUT_LENGTH);
 
     // 接着使用源节点后一个节点进行 pvf 的计算
-    unsigned char* next_pvf = calculate_hmac(pvs->hmac_api,
+    unsigned char *next_pvf = calculate_hmac(pvs->hmac_api,
                                              concatenation,
                                              PVF_LENGTH + HASH_OUTPUT_LENGTH,
                                              pvss->session_keys[0],
@@ -113,7 +124,7 @@ static void fill_ppf_for_single_route(struct RoutingTableEntry *rte,
     push_element_into_bloom_filter(pvs->bloom_filter, next_pvf, PVF_LENGTH);
 
     // 进行所有的节点的遍历
-    for (index = 1; index < rte->path_length -  1; index++) {
+    for (index = 1; index < rte->path_length - 1; index++) {
         // 拿到 session key
         unsigned char *session_key = pvss->session_keys[index]; // session_key 会话密钥
         // 进行拼接
@@ -135,10 +146,33 @@ static void fill_ppf_for_single_route(struct RoutingTableEntry *rte,
         // 将 hmac_result 插入到 bf 之中
         push_element_into_bloom_filter(pvs->bloom_filter, hmac_result, PVF_LENGTH);
     }
-    if(next_pvf) {
+
+    // 对最后的 next_pvf 进行加密
+    unsigned char *enc_pvf = calculate_hmac(pvs->hmac_api,
+                                            next_pvf,
+                                            PVF_LENGTH,
+                                            pvss->session_keys[rte->path_length - 1],
+                                            HMAC_OUTPUT_LENGTH);
+
+    memcpy(encpvf_start_pointer, enc_pvf, PVF_LENGTH);
+
+    // 将 bf 复制到 ppf 的位置
+    memcpy(ppf_start_pointer, pvs->bloom_filter->bitset, pvs->bloom_filter->bf_effective_bytes);
+    // 进行 bf 的重置
+    reset_bloom_filter(pvs->bloom_filter);
+    // 在最后进行静态哈希的释放
+    kfree(static_fields_hash);
+
+
+    if (next_pvf) {
         kfree(next_pvf);
     }
+
+    if (enc_pvf) {
+        kfree(enc_pvf);
+    }
 }
+
 
 /**
  * 进行 PPF 字段的填充
@@ -147,33 +181,20 @@ static void fill_ppf_for_single_route(struct RoutingTableEntry *rte,
  * @param pvs 路径验证结构体
  * @param pvss session 结构体
  */
-static void fill_ppf_fields(struct SELiRHeader *selir_header,
-                            struct RoutingCalcRes *rcr,
-                            struct PathValidationStructure *pvs,
-                            struct PathValidationSockStructure *pvss,
-                            unsigned char *pvf_start_pointer) {
-    // 索引
-    int index;
+static void fill_ppf_and_enc_pvf_fields(struct FastSELiRHeader *fast_selir_header,
+                                        struct RoutingCalcRes *rcr,
+                                        struct PathValidationStructure *pvs,
+                                        struct PathValidationSockStructure *pvss,
+                                        unsigned char *pvf_start_pointer,
+                                        unsigned char *encpvf_start_pointer,
+                                        unsigned char *ppf_start_pointer) {
     // 计算静态字段的哈希
-    unsigned char *static_fields_hash = calculate_selir_hash(pvs->hash_api, selir_header);
-    // 获取 ppf 起始的指针
-    unsigned char *ppf_start_pointer = get_selir_ppf_start_pointer(selir_header);
-    // 进行所有的路由条目的遍历 (现在还是只能支持一个 destination)
-    // 循环进行每一条路由的处理, 但是这里只能处理一条路由, 后续可以进行更新
-    for (index = 0; index < rcr->number_of_routes; index++) {
-        // 拿到路由条目 -> 如果是第一条则对应的是 source->primary
-        struct RoutingTableEntry *rte = rcr->rtes[index];
-        // 处理单条路由的过程
-        // ---------------------------------------------------------------------------------------
-        fill_ppf_for_single_route(rte, pvs, pvss, pvf_start_pointer, static_fields_hash);
-        // ---------------------------------------------------------------------------------------
-    }
-    // 将 bf 复制到 ppf 的位置
-    memcpy(ppf_start_pointer, pvs->bloom_filter->bitset, pvs->bloom_filter->bf_effective_bytes);
-    // 进行 bf 的重置
-    reset_bloom_filter(pvs->bloom_filter);
-    // 在最后进行静态哈希的释放
-    kfree(static_fields_hash);
+    unsigned char *static_fields_hash = calculate_fast_selir_hash(pvs->hash_api, fast_selir_header);
+    // 对于 fast selir 只能允许单播的出现
+    struct RoutingTableEntry *rte = rcr->rtes[0];
+    // 进行 ppf 的填充
+    fill_ppf_and_encpvf_for_single_route(rte, pvs, pvss, pvf_start_pointer, encpvf_start_pointer,
+                                         ppf_start_pointer, static_fields_hash);
 }
 
 /**
@@ -182,13 +203,13 @@ static void fill_ppf_fields(struct SELiRHeader *selir_header,
  * @param ppf_length ppf 长度
  * @param user_space_info 用户空间信息
  */
-static void fill_destination_fields(struct SELiRHeader *selir_header,
+static void fill_destination_fields(struct FastSELiRHeader *fast_selir_header,
                                     int ppf_length,
                                     struct UserSpaceInfo *user_space_info) {
     // 索引
     int index;
     // 获取指向目的的指针
-    unsigned char *destination_start_pointer = get_selir_dest_start_pointer(selir_header, ppf_length);
+    unsigned char *destination_start_pointer = get_fast_selir_dest_start_pointer(fast_selir_header, ppf_length);
     // 进行填充
     for (index = 0; index < user_space_info->number_of_destinations; index++) {
         destination_start_pointer[index] = user_space_info->destinations[index];
@@ -196,27 +217,15 @@ static void fill_destination_fields(struct SELiRHeader *selir_header,
 }
 
 
-static void fill_meta_data(struct SELiRHeader *selir_header,
-                           unsigned char *static_fields_hash,
-                           struct SessionID session_id,
-                           time64_t timestamp) {
-    unsigned char *hash_start_pointer = get_selir_hash_start_pointer(selir_header);
-    unsigned char *session_id_start_pointer = get_selir_session_id_start_pointer(selir_header);
-    unsigned char *timestamp_start_pointer = get_selir_timestamp_start_pointer(selir_header);
-    memcpy(hash_start_pointer, static_fields_hash, HASH_LENGTH);
-    memcpy(session_id_start_pointer, &session_id, sizeof(struct SessionID));
-    memcpy(timestamp_start_pointer, &(timestamp), sizeof(time64_t));
-}
-
-struct sk_buff *self_defined__selir_make_skb(struct sock *sk, struct flowi4 *fl4,
-                                             struct sk_buff_head *queue, struct inet_cork *cork,
-                                             struct RoutingCalcRes *rcr,
-                                             u64* encryption_time_elapsed) {
+struct sk_buff *self_defined__fast_selir_make_skb(struct sock *sk, struct flowi4 *fl4,
+                                                  struct sk_buff_head *queue, struct inet_cork *cork,
+                                                  struct RoutingCalcRes *rcr,
+                                                  u64 *encryption_time_elapsed) {
     struct sk_buff *skb, *tmp_skb;
     struct sk_buff **tail_skb;
     struct inet_sock *inet = inet_sk(sk);
     struct net *net = sock_net(sk);
-    struct SELiRHeader *selir_header;
+    struct FastSELiRHeader *fast_selir_header;
     struct PathValidationStructure *pvs = get_pvs_from_ns(net);
     unsigned char *bloom_pointer_start = NULL;
     unsigned char *dest_pointer_start = NULL;
@@ -252,47 +261,52 @@ struct sk_buff *self_defined__selir_make_skb(struct sock *sk, struct flowi4 *fl4
 
     // 进行基本头部的初始化
     // ---------------------------------------------------------------------------------------
-    selir_header = selir_hdr(skb); // 创建 header
-    selir_header->version = SELIR_VERSION_NUMBER; // 版本 (字段1)
-    selir_header->tos = (cork->tos != -1) ? cork->tos : inet->tos; // tos type_of_service (字段2)
-    selir_header->ttl = ttl; // ttl (字段3)
-    selir_header->protocol = sk->sk_protocol; // 上层协议 (字段4)
-    selir_header->frag_off = htons(IP_DF); // 是否进行分片 (字段5) -> 这里默认设置的是不进行分片操作
-    selir_header->id = 0; // 进行 id 的设置 (字段6) -> 如果不进行分片的话，那么 id 默认设置为 0
-    selir_header->check = 0; // 校验和字段 (字段7)
-    selir_header->source = rcr->source; // 设置源 (字段8)
-    selir_header->hdr_len = get_selir_header_size(rcr, pvs); // 设置数据包头部长度 (字段9)
-    selir_header->tot_len = htons(skb->len); // tot_len 字段 10
-    selir_header->ppf_len = pvs->bloom_filter->bf_effective_bytes; // ppf 长度
-    selir_header->dest_len = rcr->user_space_info->number_of_destinations; // 目的数量
+    fast_selir_header = fast_selir_hdr(skb); // 创建 header
+    fast_selir_header->version = FAST_SELIR_VERSION_NUMBER; // 版本 (字段1)
+    fast_selir_header->tos = (cork->tos != -1) ? cork->tos : inet->tos; // tos type_of_service (字段2)
+    fast_selir_header->ttl = ttl; // ttl (字段3)
+    fast_selir_header->protocol = sk->sk_protocol; // 上层协议 (字段4)
+    fast_selir_header->frag_off = htons(IP_DF); // 是否进行分片 (字段5) -> 这里默认设置的是不进行分片操作
+    fast_selir_header->id = 0; // 进行 id 的设置 (字段6) -> 如果不进行分片的话，那么 id 默认设置为 0
+    fast_selir_header->check = 0; // 校验和字段 (字段7)
+    fast_selir_header->source = rcr->source; // 设置源 (字段8)
+    fast_selir_header->hdr_len = get_fast_selir_header_size(rcr, pvs); // 设置数据包头部长度 (字段9)
+    fast_selir_header->tot_len = htons(skb->len); // tot_len 字段 10
+    fast_selir_header->ppf_len = pvs->bloom_filter->bf_effective_bytes; // ppf 长度
+    fast_selir_header->dest_len = rcr->user_space_info->number_of_destinations; // 目的数量
     // ---------------------------------------------------------------------------------------
 
-    // 填充其余的部分
+    // 进行其余的部分的填充
     // ---------------------------------------------------------------------------------------
     // 0. 拿到 pvss
     struct PathValidationSockStructure *pvss = (struct PathValidationSockStructure *) (sk->path_validation_sock_structure);
     // 1. 首先计算哈希
-    unsigned char *static_fields_hash = calculate_selir_hash(pvs->hash_api, selir_header);
+    unsigned char *static_fields_hash = calculate_fast_selir_hash(pvs->hash_api, fast_selir_header);
     // 2. 进行元数据的填充
-    fill_meta_data(selir_header, static_fields_hash, pvss->session_id, pvss->timestamp);
+    fill_meta_data(fast_selir_header, static_fields_hash, pvss->session_id, pvss->timestamp);
     // 3. 填充 pvf 字段
-    unsigned char *pvf_start_pointer = get_selir_pvf_start_pointer(selir_header);
-    u64 start_time = ktime_get_real_ns();
+    unsigned char *pvf_start_pointer = get_fast_selir_pvf_start_pointer(fast_selir_header);
+    unsigned char *encpvf_start_pointer = get_fast_selir_enc_pvf_start_pointer(fast_selir_header);
+    unsigned char *ppf_start_pointer = get_fast_selir_ppf_start_pointer(fast_selir_header);
     fill_pvf_fields(pvs->hmac_api,
                     pvf_start_pointer,
                     static_fields_hash,
                     pvss->session_keys[rcr->rtes[0]->path_length - 1]);
     // 4. 填充 ppf 字段
-    fill_ppf_fields(selir_header, rcr, pvs, pvss, pvf_start_pointer);
+    u64 start_time = ktime_get_real_ns();
+    fill_ppf_and_enc_pvf_fields(fast_selir_header, rcr, pvs, pvss, pvf_start_pointer,
+                                encpvf_start_pointer, ppf_start_pointer);
     *encryption_time_elapsed = ktime_get_real_ns() - start_time;
 
     // 5. 填充目的字段
-    fill_destination_fields(selir_header,
+    fill_destination_fields(fast_selir_header,
                             pvs->bloom_filter->bf_effective_bytes,
                             rcr->user_space_info);
+
     // ---------------------------------------------------------------------------------------
+
     // 等待一切就绪之后计算 selir_send_check
-    selir_send_check(selir_header);
+    fast_selir_send_check(fast_selir_header);
     skb->priority = (cork->tos != -1) ? cork->priority : sk->sk_priority;
     skb->mark = cork->mark;
     skb->tstamp = cork->transmit_time;
@@ -300,5 +314,4 @@ struct sk_buff *self_defined__selir_make_skb(struct sock *sk, struct flowi4 *fl4
 
     out:
     return skb;
-    // ---------------------------------------------------------------------------------------
 }

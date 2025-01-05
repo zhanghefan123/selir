@@ -5,7 +5,7 @@
 #include "structure/routing/routing_table_entry.h"
 #include "structure/routing/variables.h"
 #include "tools/tools.h"
-
+#include <linux/inet.h>
 /**
  * 提取 netlink 消息
  * @param info generate netlink 消息
@@ -456,6 +456,8 @@ int netlink_insert_interface_table_entry_handler(struct sk_buff *request, struct
     // 消息格式: index, link_identifier, ifindex
     // 3.1 读取参数
     receive_buffer = recv_message(info);
+    int variable_in_integer;
+    __be32 peer_ip_address;
     while (true) {
         // 分割出来的字符串
         char *variable_in_str = strsep(&receive_buffer, delimiter);
@@ -463,13 +465,19 @@ int netlink_insert_interface_table_entry_handler(struct sk_buff *request, struct
         if (variable_in_str == NULL || (0 == strcmp(variable_in_str, ""))) {
             break;
         } else {
-            int variable_in_integer = (int) (simple_strtol(variable_in_str, NULL, 10));
             if (count == 0) {
+                variable_in_integer = (int) (simple_strtol(variable_in_str, NULL, 10));
                 index = variable_in_integer;
             } else if (count == 1) {
+                variable_in_integer = (int) (simple_strtol(variable_in_str, NULL, 10));
                 link_identifier = variable_in_integer;
             } else if (count == 2) {
+                variable_in_integer = (int) (simple_strtol(variable_in_str, NULL, 10));
                 ifindex = variable_in_integer;
+            } else if (count == 3){
+                peer_ip_address = in_aton(variable_in_str);
+                printk(KERN_EMERG "peer_interface_address_str: %s\n", variable_in_str);
+                printk(KERN_EMERG "peer_interface_address: %pI4\n", &peer_ip_address);
             } else {
                 return -EINVAL;
             }
@@ -481,6 +489,7 @@ int netlink_insert_interface_table_entry_handler(struct sk_buff *request, struct
     push_element_into_bloom_filter(pvs->bloom_filter, &link_identifier, sizeof(link_identifier));
     ite->link_identifier = link_identifier;
     ite->interface = dev_get_by_index(current_ns, ifindex);
+    ite->peer_ip_address = peer_ip_address;
     dev_put(ite->interface);
     memcpy(ite->bitset, pvs->bloom_filter->bitset, pvs->bloom_filter->bf_effective_bytes);
     reset_bloom_filter(pvs->bloom_filter);

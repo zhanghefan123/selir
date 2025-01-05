@@ -3,9 +3,19 @@
 //
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/netdevice.h>
+#include <net/sch_generic.h>
 #include "tools/tools.h"
 #include "api/ftrace_hook_api.h"
 
+int get_output_queue_length(struct net_device* dev){
+    int output_queue_length;
+    rcu_read_lock();
+    struct Qdisc* qdisc = rcu_dereference(dev->qdisc);
+    output_queue_length = qdisc_qlen_sum(qdisc);
+    rcu_read_unlock();
+    return output_queue_length;
+}
 
 /**
  * log_with_prefix 带有前缀的输出

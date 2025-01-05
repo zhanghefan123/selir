@@ -7,6 +7,7 @@
 
 #include <net/ip.h>
 #include "structure/header/opt_header.h"
+#include "structure/interface/interface_table.h"
 
 
 // entry 相关代码
@@ -17,25 +18,36 @@ struct SessionTableEntry {
     struct SessionID session_id; // 会话 id
     int encrypt_len; // 所有的上游节点
     int *encrypt_order; // hmac 的次序, 在 C 节点, 顺序为 KC --> KB
-    struct net_device *output_interface; // 出接口
+    struct InterfaceTableEntry *ite; // 出接口
+    struct InterfaceTableEntry **ites; // 一堆出接口
     int previous_node; // 进行前驱节点的记录
     unsigned char **session_keys; // 前驱节点的 key, 包括自身的 key
     unsigned char *session_key; // 自己的 session_key
     int path_length; // 路径的长度
-    struct OptHop *opt_hops; // 路径
+    struct SessionHop *session_hops; // 路径
     struct hlist_node pointer; // 指向的是下一个节点
 };
 
-struct SessionTableEntry *init_ste_in_dest(struct SessionID *session_id,
-                                           int encrypt_count,
-                                           int previous_node,
-                                           int current_path_index,
-                                           unsigned char* session_key);
+
+struct SessionTableEntry *init_ste_in_dest_for_multicast(struct SessionID *session_id,
+                                                         int encrypt_count,
+                                                         int path_length,
+                                                         unsigned char *session_key);
+
+struct SessionTableEntry *init_ste_in_dest_unicast(struct SessionID *session_id,
+                                                   int encrypt_count,
+                                                   int previous_node,
+                                                   int path_length,
+                                                   unsigned char *session_key);
 
 struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *sessionId,
-                                                   struct net_device *output_interface,
-                                                   unsigned char* session_key,
+                                                   struct InterfaceTableEntry *ite,
+                                                   unsigned char *session_key,
                                                    int previous_node);
+
+struct SessionTableEntry *init_ste_in_intermediate_for_multicast(struct SessionID *session_id,
+                                                                 struct InterfaceTableEntry **ites,
+                                                                 unsigned char* session_key);
 
 void free_ste(struct SessionTableEntry *ste);
 // -------------------------------------------------------

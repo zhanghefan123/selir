@@ -23,7 +23,7 @@ static int get_icing_header_size(struct RoutingCalcRes *rcr) {
     // 1. 取出只可能存在的一条路由
     struct RoutingTableEntry *rte = rcr->rtes[0];
     // 2. 进行返回
-    return (int) (sizeof(struct ICINGHeader))
+    return (sizeof(struct ICINGHeader))
            + (int) (rte->path_length * sizeof(struct ICINGHop))
            + (int) (rte->path_length * sizeof(struct Expire))
            + (int) (rte->path_length * sizeof(struct ICINGProof));
@@ -41,19 +41,19 @@ static int get_icing_header_size(struct RoutingCalcRes *rcr) {
  * @param current_ns 当前的网络命名空间
  * @param rte 路由表项
  */
-static void fill_icing_path(struct ICINGHeader* icing_header, struct RoutingTableEntry* rte){
+static void fill_icing_path(struct ICINGHeader *icing_header, struct RoutingTableEntry *rte) {
     // 索引
     int index;
     // 路径长度
     int path_length = rte->path_length;
     // 起始指针
-    unsigned char* path_start_pointer = (unsigned char*)(icing_header) + sizeof(struct ICINGHeader);
+    unsigned char *path_start_pointer = (unsigned char *) (icing_header) + sizeof(struct ICINGHeader);
     // 进行路径部分内存分配以及填充
     // -------------------------------------------------------------------------------------
-    struct ICINGHop* path = (struct ICINGHop*)path_start_pointer;
-    for(index = 0; index < path_length; index++){
+    struct ICINGHop *path = (struct ICINGHop *) path_start_pointer;
+    for (index = 0; index < path_length; index++) {
         // 当还没到达最后的节点的时候
-        if (index != (path_length - 1)){
+        if (index != (path_length - 1)) {
             path[index].node_id = rte->node_ids[index];
             path[index].link_id = rte->link_identifiers[index + 1];
         } else { // 当已经是最后一个节点, 其没有链路标识了
@@ -69,15 +69,15 @@ static void fill_icing_path(struct ICINGHeader* icing_header, struct RoutingTabl
  * @param icing_header icing 头部
  * @param rte 路由表项
  */
-static void fill_icing_expire(struct ICINGHeader* icing_header, struct RoutingTableEntry* rte){
+static void fill_icing_expire(struct ICINGHeader *icing_header, struct RoutingTableEntry *rte) {
     // 路径长度
     int path_length = rte->path_length;
     // 路径部分的内存
-    int path_memory = (int)(sizeof(struct ICINGHop)) * path_length;
+    int path_memory = (int) (sizeof(struct ICINGHop)) * path_length;
     // expire 部分的内存
-    int expire_memory = (int)(sizeof(struct Expire)) * path_length;
+    int expire_memory = (int) (sizeof(struct Expire)) * path_length;
     // 起始指针
-    unsigned char* expire_start_pointer = (unsigned char*)(icing_header) + sizeof(struct ICINGHeader) + path_memory;
+    unsigned char *expire_start_pointer = (unsigned char *) (icing_header) + sizeof(struct ICINGHeader) + path_memory;
     // 进行 memset
     memset(expire_start_pointer, 0, expire_memory);
 }
@@ -85,28 +85,28 @@ static void fill_icing_expire(struct ICINGHeader* icing_header, struct RoutingTa
 /**
  * 功能: 进行 icing 验证字段的填充
  */
-static void fill_icing_validation(struct ICINGHeader* icing_header, struct RoutingTableEntry* rte, struct PathValidationStructure* pvs){
+static void fill_icing_validation(struct ICINGHeader *icing_header, struct RoutingTableEntry *rte,
+                                  struct PathValidationStructure *pvs, u64* encryption_time_elapsed) {
+    u64 start_time = ktime_get_real_ns();
     // 索引
     int index;
-    // 内部索引
-    int inner_index;
     // 当前节点 id
     int current_node_id = pvs->node_id;
     // 路径长度
     int path_length = rte->path_length;
     // 起始指针
-    unsigned char* validation_start_pointer = get_icing_proof_start_pointer(icing_header);
+    unsigned char *validation_start_pointer = get_icing_proof_start_pointer(icing_header);
     // 进行路径部分内存分配以及填充
     // -------------------------------------------------------------------------------------
     // 1. 先进行静态哈希的计算
-    unsigned char* static_fields_hash = calculate_icing_hash(pvs->hash_api, icing_header);
-    unsigned char* hmac_result = NULL;
-    unsigned char* ai_result = NULL;
-    struct ICINGProof* proof_list = (struct ICINGProof*)(validation_start_pointer);
+    unsigned char *static_fields_hash = calculate_icing_hash(pvs->hash_api, icing_header);
+    unsigned char *hmac_result = NULL;
+    unsigned char *ai_result = NULL;
+    struct ICINGProof *proof_list = (struct ICINGProof *) (validation_start_pointer);
 
     // 2. 进行 ai 的计算
     char key[20];
-    for(index = 0; index < path_length; index++){
+    for (index = 0; index < path_length; index++) {
         // 拿到中间节点的 id
         int on_path_node_id = rte->node_ids[index];
         // 获取 proof
@@ -115,19 +115,19 @@ static void fill_icing_validation(struct ICINGHeader* icing_header, struct Routi
         ai_result = calculate_hmac(pvs->hmac_api,
                                    static_fields_hash,
                                    HASH_OUTPUT_LENGTH,
-                                   (unsigned char*)key,
-                                   (int)strlen(key));
+                                   (unsigned char *) key,
+                                   (int) strlen(key));
         // 进行结果的拷贝
         memcpy(&proof_list[index], ai_result, ICING_PROOF_LENGTH);
 
         // 进行结果的释放
-        if(NULL != ai_result){
+        if (NULL != ai_result) {
             kfree(ai_result);
         }
     }
 
     // 3. 进行 proof 的计算
-    for(index = 0; index < path_length; index++){
+    for (index = 0; index < path_length; index++) {
         // 拿到中间节点的 id
         int on_path_node_id = rte->node_ids[index];
         snprintf(key, sizeof(key), "key-%d-%d", current_node_id, on_path_node_id);
@@ -135,26 +135,25 @@ static void fill_icing_validation(struct ICINGHeader* icing_header, struct Routi
         hmac_result = calculate_hmac(pvs->hmac_api,
                                      static_fields_hash,
                                      HASH_OUTPUT_LENGTH,
-                                     (unsigned char*)key,
-                                     (int)strlen(key));
+                                     (unsigned char *) key,
+                                     (int) strlen(key));
 
         // 进行按位的异或
-        memory_xor( (unsigned char *)&proof_list[index], hmac_result, ICING_PROOF_LENGTH);
+        memory_xor((unsigned char *) &proof_list[index], hmac_result, ICING_PROOF_LENGTH);
 
-        // 不再需要进行结果的拷贝
-        // memcpy(&proof_list[index], hmac_result, ICING_PROOF_LENGTH);
         // 进行 hmac 内存的释放
-        if (NULL != hmac_result){
+        if (NULL != hmac_result) {
             kfree(hmac_result);
         }
     }
     // -------------------------------------------------------------------------------------
     // 进行内存的释放
     // -------------------------------------------------------------------------------------
-    if (NULL != static_fields_hash){
+    if (NULL != static_fields_hash) {
         kfree(static_fields_hash);
     }
     // -------------------------------------------------------------------------------------
+    *encryption_time_elapsed = ktime_get_real_ns() - start_time;
 }
 
 struct sk_buff *self_defined_icing_make_skb(struct sock *sk,
@@ -163,7 +162,7 @@ struct sk_buff *self_defined_icing_make_skb(struct sock *sk,
                                                         int len, int odd, struct sk_buff *skb),
                                             void *from, int length, int transhdrlen,
                                             struct ipcm_cookie *ipc,
-                                            struct inet_cork *cork, unsigned int flags, struct RoutingCalcRes *rcr) {
+                                            struct inet_cork *cork, unsigned int flags, struct RoutingCalcRes *rcr, u64 *encryption_time_elapsed) {
     struct sk_buff_head queue;
     int err;
 
@@ -189,23 +188,24 @@ struct sk_buff *self_defined_icing_make_skb(struct sock *sk,
         return ERR_PTR(err);
     }
 
-    return self_defined__icing_make_skb(sk, fl4, &queue, cork, rcr);
+    return self_defined__icing_make_skb(sk, fl4, &queue, cork, rcr, encryption_time_elapsed);
 }
 
 
-struct sk_buff* self_defined__icing_make_skb(struct sock *sk,
+struct sk_buff *self_defined__icing_make_skb(struct sock *sk,
                                              struct flowi4 *fl4,
                                              struct sk_buff_head *queue,
                                              struct inet_cork *cork,
-                                             struct RoutingCalcRes *rcr){
+                                             struct RoutingCalcRes *rcr,
+                                             u64* encryption_time_elapsed) {
     struct sk_buff *skb, *tmp_skb;
     struct sk_buff **tail_skb;
     struct inet_sock *inet = inet_sk(sk);
     struct net *net = sock_net(sk);
     struct ICINGHeader *icing_header;
-    struct PathValidationStructure* pvs = get_pvs_from_ns(net);
-    unsigned char* bloom_pointer_start = NULL;
-    unsigned char* dest_pointer_start = NULL;
+    struct PathValidationStructure *pvs = get_pvs_from_ns(net);
+    unsigned char *bloom_pointer_start = NULL;
+    unsigned char *dest_pointer_start = NULL;
 
     __be16 df = 0;
     __u8 ttl;
@@ -257,7 +257,7 @@ struct sk_buff* self_defined__icing_make_skb(struct sock *sk,
     // ---------------------------------------------------------------------------------------
     fill_icing_path(icing_header, rcr->rtes[0]); // 填充路径部分
     fill_icing_expire(icing_header, rcr->rtes[0]); // 填充 expire 部分
-    fill_icing_validation(icing_header, rcr->rtes[0], pvs); // 填充验证字段部分
+    fill_icing_validation(icing_header, rcr->rtes[0], pvs, encryption_time_elapsed); // 填充验证字段部分
     // ---------------------------------------------------------------------------------------
 
     // 等待一切就绪后计算 check

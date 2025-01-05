@@ -15,7 +15,7 @@ int lir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
     struct PathValidationStructure* pvs = get_pvs_from_ns(net);
     int process_result;
     // 2. 进行消息的打印
-    PRINT_LIR_HEADER(lir_header);
+    // PRINT_LIR_HEADER(lir_header);
     // 3. 进行初级的校验
     skb = lir_rcv_validate(skb, net);
     if (NULL == skb){
@@ -34,7 +34,7 @@ int lir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
         return 0;
     } else {
         // 5.2 进行数据包的释放
-        LOG_WITH_PREFIX("drop packet");
+        // LOG_WITH_PREFIX("drop packet");
         kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
         return 0;
     }
@@ -73,7 +73,7 @@ int lir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs
             // 如果入接口索引等于要转发的方向那么就不进行转发
             if(in_dev->ifindex != abit->interfaces[index]->interface->ifindex){
                 struct sk_buff* copied_skb = skb_copy(skb, GFP_KERNEL);
-                pv_packet_forward(copied_skb, abit->interfaces[index]->interface, current_ns);
+                pv_packet_forward(copied_skb, abit->interfaces[index], current_ns);
             } else {
                 LOG_WITH_PREFIX("not forward to incomming interface");
             }

@@ -26,6 +26,7 @@ pvm-objs := \
 	src/structure/header/icing_header.o \
 	src/structure/header/opt_header.o \
 	src/structure/header/selir_header.o \
+	src/structure/header/fast_selir_header.o \
 	src/structure/namespace/namespace.o \
 	src/structure/crypto/crypto_structure.o \
 	src/structure/crypto/bloom_filter.o \
@@ -49,9 +50,14 @@ pvm-objs := \
 	src/hooks/network_layer/ipv4/ip_make_skb/icing_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_make_skb/opt_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_make_skb/selir_make_skb.o \
+	src/hooks/network_layer/ipv4/ip_make_skb/selir_fast_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_make_skb/session_make_skb.o \
+	src/hooks/network_layer/ipv4/ip_make_skb/multicast_session_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_output/impl.o \
 	src/hooks/network_layer/ipv4/ip_rcv/selir_rcv.o \
+	src/hooks/network_layer/ipv4/ip_rcv/session_rcv.o \
+	src/hooks/network_layer/ipv4/ip_rcv/multicast_session_rcv.o \
+	src/hooks/network_layer/ipv4/ip_rcv/fast_selir_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/lir_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/icing_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/opt_rcv.o \

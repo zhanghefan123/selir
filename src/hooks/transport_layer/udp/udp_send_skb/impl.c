@@ -3,8 +3,10 @@
 #include "structure/header/lir_header.h"
 #include "structure/header/icing_header.h"
 #include "hooks/transport_layer/udp/udp_send_skb/udp_send_skb.h"
-#include "hooks/network_layer/ipv4/ip_send_skb/ip_send_skb.h"
 #include "structure/routing/routing_calc_res.h"
+#include "structure/header/fast_selir_header.h"
+#include "hooks/network_layer/ipv4/ip_output/ip_output.h"
+#include "structure/header/multicast_session_header.h"
 
 /**
  * 进行 udp 层的定义
@@ -45,7 +47,14 @@ int self_defined_udp_send_skb(struct sk_buff *skb,
     } else if (SELIR_VERSION_NUMBER == validation_protocol){
         struct SELiRHeader* selir_header = selir_hdr(skb);
         source_identification = selir_header->source;
-    } else {
+    } else if (FAST_SELIR_VERSION_NUMBER == validation_protocol){
+        struct FastSELiRHeader* fast_selir_header = fast_selir_hdr(skb);
+        source_identification = fast_selir_header->source;
+    } else if (MULTICAST_SELIR_VERSION_NUMBER == validation_protocol){
+        struct MulticastSessionHeader* multicast_session_header = multicast_session_hdr(skb);
+        source_identification = multicast_session_header->source;
+    }
+    else {
         LOG_WITH_PREFIX("current not supported protocol");
     }
 
@@ -111,7 +120,13 @@ int self_defined_udp_send_skb(struct sk_buff *skb,
 
     // 进行数据的发送
     send:
-    err = self_defined_path_validation_send_skb(sock_net(sk), skb, rcr);
+    // -------------------------------------------------------------
+    struct net_device *dev = rcr->ite->interface;
+    IP_UPD_PO_STATS(sock_net(sk), IPSTATS_MIB_OUT, skb->len);
+    skb->dev = dev;
+    skb->protocol = htons(ETH_P_IP);
+    err = pv_finish_output2(sock_net(sk), sk, skb, rcr->ite);
+    // -------------------------------------------------------------
     if (err) {
         if (err == -ENOBUFS && !inet->recverr) {
             UDP_INC_STATS(sock_net(sk),

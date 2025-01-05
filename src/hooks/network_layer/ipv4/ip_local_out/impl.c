@@ -11,5 +11,5 @@ int pv_local_out(struct net* net, struct sock* sk, struct sk_buff* skb, struct R
 }
 
 int __pv_local_out(struct net* net, struct sock* sk, struct sk_buff* skb, struct RoutingCalcRes* rcr){
-    return pv_output(net, sk, skb, rcr->output_interface);
+    return pv_output(net, sk, skb, rcr->ite);
 }

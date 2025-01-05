@@ -136,12 +136,6 @@ static void initialize_opvs(struct shash_desc *hmac_api,
         memcpy(&(opvs[index]), opv_i, OPV_LENGTH);
 
 
-        // 打印最后一个 opv
-//        if(index == rte->path_length - 1){
-//            printk(KERN_EMERG "MAKE SKB last opv:");
-//            print_memory_in_hex(combination, PVF_LENGTH + HASH_LENGTH + sizeof(int) + sizeof(time64_t));
-//            print_memory_in_hex(opv_i, OPV_LENGTH);
-//        }
 
 
         // 3.5 拷贝完成之后进行释放
@@ -235,7 +229,7 @@ struct sk_buff *self_defined_opt_make_skb(struct sock *sk,
                                                       int len, int odd, struct sk_buff *skb),
                                           void *from, int length, int transhdrlen,
                                           struct ipcm_cookie *ipc,
-                                          struct inet_cork *cork, unsigned int flags, struct RoutingCalcRes *rcr) {
+                                          struct inet_cork *cork, unsigned int flags, struct RoutingCalcRes *rcr, u64* encryption_time_elapsed) {
     struct sk_buff_head queue;
     int err;
 
@@ -265,14 +259,15 @@ struct sk_buff *self_defined_opt_make_skb(struct sock *sk,
         return ERR_PTR(err);
     }
 
-    return self_defined__opt_make_skb(sk, fl4, &queue, cork, rcr);
+    return self_defined__opt_make_skb(sk, fl4, &queue, cork, rcr, encryption_time_elapsed);
 }
 
 struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
                                            struct flowi4 *fl4,
                                            struct sk_buff_head *queue,
                                            struct inet_cork *cork,
-                                           struct RoutingCalcRes *rcr) {
+                                           struct RoutingCalcRes *rcr,
+                                           u64* encryption_time_elapsed) {
     struct sk_buff *skb, *tmp_skb;
     struct sk_buff **tail_skb;
     struct inet_sock *inet = inet_sk(sk);
@@ -336,8 +331,10 @@ struct sk_buff *self_defined__opt_make_skb(struct sock *sk,
     // 头部后续部分初始化
     // ---------------------------------------------------------------------------------------
     // 拿到 path_validation_sock_structure
+    u64 start = ktime_get_real_ns();
     struct PathValidationSockStructure *pvss = (struct PathValidationSockStructure *) (sk->path_validation_sock_structure);
     fill_data_packet_fields(opt_header, rcr->rtes[0], pvs, pvss);
+    *encryption_time_elapsed = ktime_get_real_ns() - start;
     // ---------------------------------------------------------------------------------------
 
     // 等待一切就绪后计算 check

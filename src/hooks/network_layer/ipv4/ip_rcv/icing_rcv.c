@@ -7,31 +7,35 @@
 #include "structure/crypto/crypto_structure.h"
 #include <net/inet_ecn.h>
 #include <linux/inetdevice.h>
+#include <net/sch_generic.h>
 
 int icing_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev) {
+    // 0. 初始时间
+    u64 start_time = ktime_get_real_ns();
+    u64 encryption_elapsed_time = 0;
     // 1. 初始化变量
     struct net *net = dev_net(dev);
-    struct ICINGHeader *icing_header = icing_hdr(skb);
     struct PathValidationStructure *pvs = get_pvs_from_ns(net);
+    bool if_log_time = false;
+    struct ICINGHeader *icing_header = icing_hdr(skb);
     int process_result;
-    // 2. 进行消息的打印
-    // 为了实验进行暂时的注释
-    // PRINT_ICING_HEADER(icing_header);
-    // 3. 进行初级的校验
+    // 2. 进行初级的校验
     skb = icing_rcv_validate(skb, net);
-    // 4. 进行实际的转发
-    process_result = icing_forward_packets(skb, pvs, net, orig_dev);
-    // 5. 判断是进行本地交付还是直接丢弃
+    // 3. 进行实际的转发
+    process_result = icing_forward_packets(skb, pvs, net, orig_dev, &encryption_elapsed_time);
+    // 4. 判断是进行本地交付还是直接丢弃
     if (NET_RX_SUCCESS == process_result) {
-        // 为了实验, 暂时注释掉
-        // LOG_WITH_PREFIX("local_deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
         pv_local_deliver(skb, icing_header->protocol,
                          receive_interface_address);
+        if_log_time = true;
     } else {
-        // 为了实验，暂时注释掉
-        // LOG_WITH_PREFIX("drop packet");
         kfree_skb_reason(skb, SKB_DROP_REASON_BPF_CGROUP_EGRESS);
+    }
+    // 5. 经过的时间
+    if(if_log_time){
+        printk(KERN_EMERG "icing destination forward time elapsed = %llu ns\n", ktime_get_real_ns() - start_time);
+        printk(KERN_EMERG "icing destination encryption time elapsed = %llu ns\n", encryption_elapsed_time);
     }
     return 0;
 }
@@ -177,6 +181,7 @@ static bool proof_verification(struct ICINGHeader *icing_header, struct PathVali
                                               HASH_OUTPUT_LENGTH,
                                               (unsigned char *) key,
                                               (int) strlen(key));
+
     // 首先计算源和当前节点的 hmac
     snprintf(key, sizeof(key), "key-%d-%d", source, current_node_id);
     unsigned char *hmac_result_final = calculate_hmac(hmac_api,
@@ -184,6 +189,7 @@ static bool proof_verification(struct ICINGHeader *icing_header, struct PathVali
                                                       HASH_OUTPUT_LENGTH,
                                                       (unsigned char *) key,
                                                       (int) (strlen(key)));
+
     // 将 ai 和 hmac 进行异或者
     memory_xor(hmac_result_final, ai_result, ICING_PROOF_LENGTH);
 
@@ -250,7 +256,7 @@ static void proof_update(struct ICINGHeader *icing_header, struct PathValidation
 }
 
 int icing_forward_packets(struct sk_buff *skb, struct PathValidationStructure *pvs, struct net *current_ns,
-                          struct net_device *in_dev) {
+                          struct net_device *in_dev, u64* encryption_time_elapsed) {
     // 初始化变量
     int index;
     int result = NET_RX_DROP;
@@ -261,14 +267,15 @@ int icing_forward_packets(struct sk_buff *skb, struct PathValidationStructure *p
     struct ICINGHop *path = (struct ICINGHop *) get_icing_path_start_pointer(icing_header);
     int current_path_index = icing_header->current_path_index;
     int current_link_identifier = path[current_path_index].link_id;
+
+    u64 start_time = ktime_get_real_ns();
     // 进行上游节点是否正确转发的校验
     verification_result = proof_verification(icing_header, pvs);
     if (verification_result) {
-        // 为了进行实验, 暂时注释掉
-        // LOG_WITH_PREFIX("verification succeed");
-        // 当校验成功之后, 判断是否需要向上进行交付
         if (current_node_id == destination) {
             result = NET_RX_SUCCESS;
+            *encryption_time_elapsed = ktime_get_real_ns() - start_time;
+            return result;
         }
     } else {
         LOG_WITH_PREFIX("verification failed");
@@ -277,6 +284,10 @@ int icing_forward_packets(struct sk_buff *skb, struct PathValidationStructure *p
     }
     // 进行凭证的更新
     proof_update(icing_header, pvs);
+    // 进行时间的更新
+    *encryption_time_elapsed = ktime_get_real_ns() - start_time;
+
+
     // 进行 current_path_index 的更新
     icing_header->current_path_index += 1;
     // 计算校验和
@@ -288,7 +299,7 @@ int icing_forward_packets(struct sk_buff *skb, struct PathValidationStructure *p
             // 进行拷贝
             struct sk_buff *skb_copied = skb_copy(skb, GFP_KERNEL);
             // 进行转发
-            pv_packet_forward(skb_copied, ite->interface, current_ns);
+            pv_packet_forward(skb_copied, ite, current_ns);
         }
     }
     return result;

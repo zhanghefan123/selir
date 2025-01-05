@@ -11,24 +11,24 @@
  * @param current_ns 当前网络命名空间
  * @return
  */
-int pv_packet_forward(struct sk_buff* skb, struct net_device* output_interface, struct net* current_ns){
-    if (NULL != output_interface){
+int pv_packet_forward(struct sk_buff* skb, struct InterfaceTableEntry* ite, struct net* current_ns){
+    if (NULL != ite){
         // 最大数据传输单元
-        u32 mtu = READ_ONCE(output_interface->mtu);
+        u32 mtu = READ_ONCE(ite->interface->mtu);
         // socket
         struct sock* sk = NULL;
         // reason 原因
         SKB_DR(reason);
         // 进行 L2 层头部空间的预留
-        skb_cow(skb, LL_RESERVED_SPACE(output_interface));
+        skb_cow(skb, LL_RESERVED_SPACE(ite->interface));
         // 如果 ip 层校验和策略，则修改为 None
         skb_forward_csum(skb);
         // 将 skb 修改为出口网络设备
-        skb->dev = output_interface;
+        skb->dev = ite->interface;
         // 设置链路层协议
         skb->protocol = htons(ETH_P_IP);
         // 当超过 mtu 限制, 需要进行分片
-        return pv_finish_output2(current_ns, sk, skb, output_interface);
+        return pv_finish_output2(current_ns, sk, skb, ite);
     } else {
         LOG_WITH_PREFIX("output interface == NULL");
         return 0;

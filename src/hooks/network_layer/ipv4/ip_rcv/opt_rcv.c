@@ -9,11 +9,14 @@
 #include <linux/inetdevice.h>
 
 int opt_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev) {
+    u64 start_time = ktime_get_real_ns();
+    u64 encryption_elapsed_time = 0;
+    struct net *current_ns = dev_net(dev);
+    struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
+    struct OptHeader *opt_header = opt_hdr(skb);
+    bool if_log_time = false;
     // 1. 初始化变量
     int process_result;
-    struct net *current_ns = dev_net(dev);
-    struct OptHeader *opt_header = opt_hdr(skb);
-    struct PathValidationStructure *pvs = get_pvs_from_ns(current_ns);
     // 2. 进行初级的校验
     skb = opt_rcv_validate(skb, current_ns);
     if (NULL == skb) {
@@ -21,222 +24,217 @@ int opt_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
         return 0;
     }
     // 3. 进行不同的数据包的处理
-    if (OPT_ESTABLISH_VERSION_NUMBER == opt_header->version) {
-        process_result = opt_forward_session_establish_packets(skb, pvs, current_ns, orig_dev);
-    } else if (OPT_DATA_VERSION_NUMBER == opt_header->version) {
-        process_result = opt_forward_data_packets(skb, pvs, current_ns, orig_dev);
-    } else {
-        LOG_WITH_PREFIX("unsupported opt packet type");
-        kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
-        return 0;
-    }
+    process_result = opt_forward_data_packets(skb, pvs, current_ns, orig_dev, &encryption_elapsed_time);
+    //    if (OPT_ESTABLISH_VERSION_NUMBER == opt_header->version) {
+    //        process_result = opt_forward_session_establish_packets(skb, pvs, current_ns, orig_dev);
+    //    } else if (OPT_DATA_VERSION_NUMBER == opt_header->version) {
+    //        process_result = opt_forward_data_packets(skb, pvs, current_ns, orig_dev, &encryption_elapsed_time);
+    //    } else {
+    //        LOG_WITH_PREFIX("unsupported opt packet type");
+    //        kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
+    //        return 0;
+    //    }
+
     // 5. 进行数据包本地的处理
     if (NET_RX_SUCCESS == process_result) {
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
         pv_local_deliver(skb, opt_header->protocol, receive_interface_address);
-        return 0;
+        if_log_time = true;
     } else if (NET_RX_DROP == process_result) {
         kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
-        return 0;
-    } else {
-        // do nothing
-        return 0;
     }
+    if(if_log_time){
+        printk(KERN_EMERG "opt destination forward time elapsed = %llu ns\n", ktime_get_real_ns() - start_time);
+        printk(KERN_EMERG "opt destination encryption time elapsed = %llu ns\n", encryption_elapsed_time);
+    }
+    return 0;
 }
 
 
-/**
- * 根据 session_id 以及 private_value 计算 session_key
- * @param pvs 路径验证数据结构
- * @param current_node_id 节点id
- * @return
- */
-static unsigned char *calculate_session_key(struct PathValidationStructure *pvs, struct SessionID *session_id) {
-    char secret_value[20];
-    snprintf(secret_value, sizeof(secret_value), "key-%d", pvs->node_id);
-    unsigned char *session_key = calculate_hmac(pvs->hmac_api,
-                                                (unsigned char *) session_id,
-                                                sizeof(struct SessionID),
-                                                (unsigned char *) (secret_value),
-                                                (int) (strlen(secret_value)));
-    return session_key;
-}
-
-/**
- * 目的节点进行会话建立包的处理
- * @param pvs 路径验证数据结构
- * @param pvs 路径验证数据结构
- * @param path_length 路径长度
- * @param current_path_index 当前路径索引
- */
-static void destination_process_session_packets(struct PathValidationStructure *pvs,
-                                                struct OptHop *path,
-                                                struct SessionID *session_id,
-                                                int path_length,
-                                                int current_path_index,
-                                                int source,
-                                                int current_node_id) {
-    // 索引
-    int index;
-    // 路径长度
-    int encrypt_count = path_length;
-    // 需要进行前驱节点的记录
-    int previous_node;
-    if (0 == current_path_index) {
-        previous_node = source;
-    } else {
-        previous_node = path[current_path_index - 1].node_id;
-    }
-
-    // 计算 session_key
-    char secret_value[20];
-    snprintf(secret_value, sizeof(secret_value), "key-%d", pvs->node_id);
-    unsigned char *session_key = calculate_hmac(pvs->hmac_api,
-                                                (unsigned char *) (session_id),
-                                                sizeof(struct SessionID),
-                                                (unsigned char *) (secret_value),
-                                                (int) (strlen(secret_value)));
-
-
-    // 创建会话表项
-    struct SessionTableEntry *ste = init_ste_in_dest(session_id,
-                                                     encrypt_count,
-                                                     previous_node,
-                                                     path_length,
-                                                     session_key);
-
-    // 准备将路径拷贝到 ste->opth_ops 之中去
-    memcpy(ste->opt_hops, path, sizeof(struct OptHop) * path_length);
-
-
-    // 目的节点是第一个加密的, 其次是前驱节点
-    ste->encrypt_order[0] = current_node_id;
-    for (index = 0; index < path_length - 1; index++) {
-        ste->encrypt_order[index + 1] = path[index].node_id;
-    }
-
-    // 按照 encrypt_order 的顺序进行 session_keys_for_opt 的计算和存储
-    for (index = 0; index < path_length; index++) {
-        // 从 encrypt_order 之中拿到 encrypt node
-        int encrypt_node = ste->encrypt_order[index];
-        // 产生 secret_value
-        snprintf(secret_value, sizeof(secret_value), "key-%d", encrypt_node);
-        // 计算 session_key
-        unsigned char *session_key_tmp = calculate_hmac(pvs->hmac_api,
-                                                    (unsigned char *) session_id,
-                                                    sizeof(struct SessionID),
-                                                    (unsigned char *) secret_value,
-                                                    (int) (strlen(secret_value)));
-        // 在 session_keys 之中进行存储
-        ste->session_keys[index] = session_key_tmp;
-    }
-
-    // 这里可以测试打印一波, 看是否是正确的
-    //    LOG_WITH_EDGE("encrypt order");
-    //    for (index = 0; index < path_length; index++) {
-    //        printk(KERN_EMERG "encrypt order %d\n", ste->encrypt_order[index]);
-    //    }
-    //    LOG_WITH_PREFIX("encrypt order");
-    // 将路径添加到 hbst 之中
-    add_entry_to_hbst(pvs->hbst, ste);
-}
-
-/**
- * 中间节点进行会话建立包的处理
- * @param skb 数据包
- * @param pvs 路径验证数据结构
- * @param session_id 会话 id
- * @param path 路径
- * @param opt_header opt 头部
- * @param current_ns 当前的网络命名孔金啊
- * @param current_link_identifier 当前的 link_identifier
- * @param current_path_index 当前的路径索引
- * @param source 源
- */
-static void intermediate_process_session_packets(struct sk_buff *skb,
-                                                 struct PathValidationStructure *pvs,
-                                                 struct SessionID *session_id,
-                                                 struct OptHop *path,
-                                                 struct OptHeader *opt_header,
-                                                 struct net *current_ns,
-                                                 int current_link_identifier,
-                                                 int current_path_index,
-                                                 int source) {
-    int index;
-    // 等待被填充的出接口
-    struct net_device *output_interface = NULL;
-    // 进行转发方向的决定
-    for (index = 0; index < pvs->abit->number_of_interfaces; index++) {
-        struct InterfaceTableEntry *ite = pvs->abit->interfaces[index];
-        if (current_link_identifier == ite->link_identifier) {
-            output_interface = ite->interface;
-            break;
-        }
-    }
-    // 需要进行前驱节点的记录
-    int previous_node;
-    if (0 == current_path_index) {
-        previous_node = source;
-    } else {
-        previous_node = path[current_path_index - 1].node_id;
-    }
-    // 依据 session_id 以及 secret_value 进行 session_key 的计算
-    char secret_value[20];
-    snprintf(secret_value, sizeof(secret_value), "key-%d", pvs->node_id);
-    unsigned char *session_key = calculate_hmac(pvs->hmac_api,
-                                                (unsigned char *) (session_id),
-                                                sizeof(struct SessionID),
-                                                (unsigned char *) (secret_value),
-                                                (int) (strlen(secret_value)));
-    // 创建会话表项目
-    struct SessionTableEntry *ste = init_ste_in_intermediate(session_id, output_interface, session_key, previous_node);
-    // 将会话表项添加到 hbst 之中
-    add_entry_to_hbst(pvs->hbst, ste);
-    // 进行 current_path_index 的更新
-    opt_header->current_path_index += 1;
-    // 在更新完了 current_path_index 之后一定需要进行 check 的更新
-    opt_send_check(opt_header);
-    // 进行数据包的转发
-    if (NULL != output_interface) {
-        pv_packet_forward(skb, output_interface, current_ns);
-    }
-}
+///**
+// * 根据 session_id 以及 private_value 计算 session_key
+// * @param pvs 路径验证数据结构
+// * @param current_node_id 节点id
+// * @return
+// */
+//static unsigned char *calculate_session_key(struct PathValidationStructure *pvs, struct SessionID *session_id) {
+//    char secret_value[20];
+//    snprintf(secret_value, sizeof(secret_value), "key-%d", pvs->node_id);
+//    unsigned char *session_key = calculate_hmac(pvs->hmac_api,
+//                                                (unsigned char *) session_id,
+//                                                sizeof(struct SessionID),
+//                                                (unsigned char *) (secret_value),
+//                                                (int) (strlen(secret_value)));
+//    return session_key;
+//}
+//
+///**
+// * 目的节点进行会话建立包的处理
+// * @param pvs 路径验证数据结构
+// * @param pvs 路径验证数据结构
+// * @param path_length 路径长度
+// * @param current_path_index 当前路径索引
+// */
+//static void destination_process_session_packets(struct PathValidationStructure *pvs,
+//                                                struct SessionHop *path,
+//                                                struct SessionID *session_id,
+//                                                int path_length,
+//                                                int current_path_index,
+//                                                int source,
+//                                                int current_node_id) {
+//    // 索引
+//    int index;
+//    // 路径长度
+//    int encrypt_count = path_length;
+//    // 需要进行前驱节点的记录
+//    int previous_node;
+//    if (0 == current_path_index) {
+//        previous_node = source;
+//    } else {
+//        previous_node = path[current_path_index - 1].node_id;
+//    }
+//
+//    // 计算 session_key
+//    char secret_value[20];
+//    snprintf(secret_value, sizeof(secret_value), "key-%d", pvs->node_id);
+//    unsigned char *session_key = calculate_hmac(pvs->hmac_api,
+//                                                (unsigned char *) (session_id),
+//                                                sizeof(struct SessionID),
+//                                                (unsigned char *) (secret_value),
+//                                                (int) (strlen(secret_value)));
+//
+//
+//    // 创建会话表项
+//    struct SessionTableEntry *ste = init_ste_in_dest(session_id,
+//                                                     encrypt_count,
+//                                                     previous_node,
+//                                                     path_length,
+//                                                     session_key);
+//
+//    // 准备将路径拷贝到 ste->opth_ops 之中去
+//    memcpy(ste->session_hops, path, sizeof(struct SessionHop) * path_length);
+//
+//
+//    // 目的节点是第一个加密的, 其次是前驱节点
+//    ste->encrypt_order[0] = current_node_id;
+//    for (index = 0; index < path_length - 1; index++) {
+//        ste->encrypt_order[index + 1] = path[index].node_id;
+//    }
+//
+//    // 按照 encrypt_order 的顺序进行 session_keys_for_opt 的计算和存储
+//    for (index = 0; index < path_length; index++) {
+//        // 从 encrypt_order 之中拿到 encrypt node
+//        int encrypt_node = ste->encrypt_order[index];
+//        // 产生 secret_value
+//        snprintf(secret_value, sizeof(secret_value), "key-%d", encrypt_node);
+//        // 计算 session_key
+//        unsigned char *session_key_tmp = calculate_hmac(pvs->hmac_api,
+//                                                    (unsigned char *) session_id,
+//                                                    sizeof(struct SessionID),
+//                                                    (unsigned char *) secret_value,
+//                                                    (int) (strlen(secret_value)));
+//        // 在 session_keys 之中进行存储
+//        ste->session_keys[index] = session_key_tmp;
+//    }
+//
+//    add_entry_to_hbst(pvs->hbst, ste);
+//}
+//
+///**
+// * 中间节点进行会话建立包的处理
+// * @param skb 数据包
+// * @param pvs 路径验证数据结构
+// * @param session_id 会话 id
+// * @param path 路径
+// * @param opt_header opt 头部
+// * @param current_ns 当前的网络命名孔金啊
+// * @param current_link_identifier 当前的 link_identifier
+// * @param current_path_index 当前的路径索引
+// * @param source 源
+// */
+//static void intermediate_process_session_packets(struct sk_buff *skb,
+//                                                 struct PathValidationStructure *pvs,
+//                                                 struct SessionID *session_id,
+//                                                 struct SessionHop *path,
+//                                                 struct OptHeader *opt_header,
+//                                                 struct net *current_ns,
+//                                                 int current_link_identifier,
+//                                                 int current_path_index,
+//                                                 int source) {
+//    int index;
+//    // 等待被填充的出接口
+//    struct InterfaceTableEntry *ite = NULL;
+//    // 进行转发方向的决定
+//    for (index = 0; index < pvs->abit->number_of_interfaces; index++) {
+//        struct InterfaceTableEntry *ite_tmp = pvs->abit->interfaces[index];
+//        if (current_link_identifier == ite_tmp->link_identifier) {
+//            ite = ite_tmp;
+//            break;
+//        }
+//    }
+//    // 需要进行前驱节点的记录
+//    int previous_node;
+//    if (0 == current_path_index) {
+//        previous_node = source;
+//    } else {
+//        previous_node = path[current_path_index - 1].node_id;
+//    }
+//    // 依据 session_id 以及 secret_value 进行 session_key 的计算
+//    char secret_value[20];
+//    snprintf(secret_value, sizeof(secret_value), "key-%d", pvs->node_id);
+//    unsigned char *session_key = calculate_hmac(pvs->hmac_api,
+//                                                (unsigned char *) (session_id),
+//                                                sizeof(struct SessionID),
+//                                                (unsigned char *) (secret_value),
+//                                                (int) (strlen(secret_value)));
+//    // 创建会话表项目
+//    struct SessionTableEntry *ste = init_ste_in_intermediate(session_id, ite, session_key, previous_node);
+//    // 将会话表项添加到 hbst 之中
+//    add_entry_to_hbst(pvs->hbst, ste);
+//    // 进行 current_path_index 的更新
+//    opt_header->current_path_index += 1;
+//    // 在更新完了 current_path_index 之后一定需要进行 check 的更新
+//    opt_send_check(opt_header);
+//    // 进行数据包的转发
+//    if (NULL != ite->interface) {
+//        pv_packet_forward(skb, ite, current_ns);
+//    }
+//}
 
 // 会话建立包处理逻辑
 // ---------------------------------------------------------------------------------------------------------------------------------------
-int
-opt_forward_session_establish_packets(struct sk_buff *skb, struct PathValidationStructure *pvs, struct net *current_ns,
-                                      struct net_device *in_dev) {
-    // 拿到头部
-    struct OptHeader *opt_header = opt_hdr(skb);
-    // 拿到 path_length
-    int path_length = *((__u16 *) get_first_opt_path_length_start_pointer(opt_header));
-    // 进行路径的解析
-    struct OptHop *path = (struct OptHop *) (get_first_opt_path_start_pointer(opt_header));
-    // 拿到 session_id
-    struct SessionID *session_id = (struct SessionID *) (get_first_opt_session_id_pointer(opt_header));
-    // 拿到当前的索引
-    int current_path_index = opt_header->current_path_index;
-    // 当前节点id
-    int current_node_id = pvs->node_id;
-    // 源节点
-    int source = opt_header->source;
-    // 目的节点
-    int destination = opt_header->dest;
-    // 拿到当前的 link_identifier
-    int current_link_identifier = path[current_path_index].link_id;
-    // 如果当前节点 id == 目的节点
-    if (current_node_id == destination) {
-        destination_process_session_packets(pvs, path, session_id,
-                                            path_length, current_path_index, source, current_node_id);
-        return NET_RX_DROP;
-    } else {
-        intermediate_process_session_packets(skb, pvs, session_id,
-                                             path, opt_header, current_ns,
-                                             current_link_identifier, current_path_index, source);
-        return NET_RX_NOTHING;
-    }
-}
+//int opt_forward_session_establish_packets(struct sk_buff *skb, struct PathValidationStructure *pvs, struct net *current_ns,
+//                                      struct net_device *in_dev) {
+//    // 拿到头部
+//    struct OptHeader *opt_header = opt_hdr(skb);
+//    // 拿到 path_length
+//    int path_length = *((__u16 *) get_first_opt_path_length_start_pointer(opt_header));
+//    // 进行路径的解析
+//    struct SessionHop *path = (struct SessionHop *) (get_first_opt_path_start_pointer(opt_header));
+//    // 拿到 session_id
+//    struct SessionID *session_id = (struct SessionID *) (get_first_opt_session_id_pointer(opt_header));
+//    // 拿到当前的索引
+//    int current_path_index = opt_header->current_path_index;
+//    // 当前节点id
+//    int current_node_id = pvs->node_id;
+//    // 源节点
+//    int source = opt_header->source;
+//    // 目的节点
+//    int destination = opt_header->dest;
+//    // 拿到当前的 link_identifier
+//    int current_link_identifier = path[current_path_index].link_id;
+//    // 如果当前节点 id == 目的节点
+//    if (current_node_id == destination) {
+//        destination_process_session_packets(pvs, path, session_id,
+//                                            path_length, current_path_index, source, current_node_id);
+//        return NET_RX_DROP;
+//    } else {
+//        intermediate_process_session_packets(skb, pvs, session_id,
+//                                             path, opt_header, current_ns,
+//                                             current_link_identifier, current_path_index, source);
+//        return NET_RX_NOTHING;
+//    }
+//}
 
 // ---------------------------------------------------------------------------------------------------------------------------------------
 
@@ -340,6 +338,7 @@ static int destination_process_data_packets(struct OptHeader *opt_header,
                                                 HASH_LENGTH,
                                                 session_key,
                                                 HMAC_OUTPUT_LENGTH);
+
     // 接着进行循环计算
     for (index = 1; index < ste->encrypt_len; index++) {
         session_key = ste->session_keys[index];
@@ -408,24 +407,27 @@ static void intermediate_process_data_packets(struct sk_buff *skb,
                                               struct OptHeader *opt_header,
                                               struct PathValidationStructure *pvs,
                                               struct SessionTableEntry *ste,
-                                              struct net *current_ns) {
+                                              struct net *current_ns,
+                                              u64* encryption_time_elapsed) {
     // 1.进行 session_key 的计算
     // 1.1 方式1: 进行主动的 session_key 的计算
     // unsigned char *session_key = calculate_session_key(pvs, session_id);
     // 1.2 方式2: 找到 session_key
     unsigned char *session_key = ste->session_key;
+
+    u64 start_time = ktime_get_real_ns();
     // 2.进行结果的验证
     bool result = proof_verification(opt_header, pvs, ste, session_key);
     // 3.进行字段的更新
     if (result) { // 如果验证是成功的, 则进行字段的更新
-        // LOG_WITH_PREFIX("verification succeed");
         proof_update(opt_header, pvs->hmac_api, session_key);
     } else { // 如果验证是失败的, 则直接进行包的丢弃
-        // LOG_WITH_PREFIX("verification failed");
         return;
     }
-    // 4.验证和更新完成之后, 就可以丢弃掉 session_key 了
-    kfree(session_key);
+    *encryption_time_elapsed = ktime_get_real_ns() - start_time;
+
+    // 4. 验证和完成之后不可以丢掉 session key
+    // kfree(session_key); 错误的代码, 因为 session_key 是保存在 session_table_entry 之中的
     // 5. 还需要进行 current_path_index 的更新
     opt_header->current_path_index += 1;
     // 6. 进行校验和的更新
@@ -433,7 +435,7 @@ static void intermediate_process_data_packets(struct sk_buff *skb,
     // 7. 进行相应的转发
     if (NULL != ste) {
         struct sk_buff *skb_copied = skb_copy(skb, GFP_KERNEL);
-        pv_packet_forward(skb_copied, ste->output_interface, current_ns);
+        pv_packet_forward(skb_copied, ste->ite, current_ns);
     } else {
         // LOG_WITH_PREFIX("cannot find ste, not forward");
     }
@@ -449,7 +451,7 @@ static void intermediate_process_data_packets(struct sk_buff *skb,
  * @return
  */
 int opt_forward_data_packets(struct sk_buff *skb, struct PathValidationStructure *pvs, struct net *current_ns,
-                             struct net_device *in_dev) {
+                             struct net_device *in_dev, u64* encryption_time_elapsed) {
     // 1.是否本地提交
     bool local_deliver;
     // 2.找到 opt_header
@@ -463,11 +465,14 @@ int opt_forward_data_packets(struct sk_buff *skb, struct PathValidationStructure
     // 6.判断是否到达目的节点
     local_deliver = pvs->node_id == destination;
     if (local_deliver) {
+        u64 start_time = ktime_get_real_ns();
+        int result = destination_process_data_packets(opt_header, pvs, ste, session_id);
+        *encryption_time_elapsed = ktime_get_real_ns() - start_time;
         // 如果是到达目的节点, 有目的节点的处理
-        return destination_process_data_packets(opt_header, pvs, ste, session_id);
+        return result;
     } else {
         // 如果是中间节点, 有中间节点的处理
-        intermediate_process_data_packets(skb, opt_header, pvs, ste, current_ns);
+        intermediate_process_data_packets(skb, opt_header, pvs, ste, current_ns, encryption_time_elapsed);
         // 由于内部的包都是 skb_copy 的, 所以直接丢弃原包即可
         return NET_RX_DROP;
     }

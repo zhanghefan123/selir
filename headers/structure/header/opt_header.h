@@ -11,6 +11,8 @@
 #define SESSION_ID_LENGTH 16
 #define HASH_LENGTH 16
 #define PVF_LENGTH 16
+#define ENC_PVF_LENGTH 16
+#define PVF_HASH_LENGTH 32
 #define OPV_LENGTH 16
 
 // first packet 包含的部分
@@ -52,19 +54,6 @@ struct OptHeader {
     unsigned char data[0];  // 额外的部分
 };
 
-// PathLength 需要单独一个结构是因为
-// 1. first packet 需要
-// 2. 其他的 packet 不需要
-struct PathLength {
-    __u16 data;
-};
-
-// 在第一个包建立连接的时候用上的 -> 代表每一跳
-struct OptHop {
-    __u16 node_id; // 节点 id
-    __u16 link_id;  // 链路标识
-};
-
 // OPT PVF
 struct OptPvf {
     char data[16];
@@ -75,35 +64,13 @@ struct OptOpv {
     char data[16];
 };
 
+// 从 skb 之中获取 opt_header
 static inline struct OptHeader *opt_hdr(const struct sk_buff *skb) {
     return (struct OptHeader *) skb_network_header(skb);
 }
 
-// 第一个包
-// ------------------------------------------------------------------------------------------------------------
 
-static inline unsigned char *get_first_opt_session_id_pointer(struct OptHeader *opt_header) {
-    return (unsigned char *) (opt_header) +
-           sizeof(struct OptHeader);
-}
-
-static inline unsigned char *get_first_opt_path_length_start_pointer(struct OptHeader *opt_header) {
-    return (unsigned char *) (opt_header) +
-           sizeof(struct OptHeader) +
-           sizeof(struct SessionID);
-}
-
-static inline unsigned char *get_first_opt_path_start_pointer(struct OptHeader *opt_header) {
-    return (unsigned char *) (opt_header) +
-           sizeof(struct OptHeader) +
-           sizeof(struct SessionID) +
-           sizeof(struct PathLength);
-}
-
-// ------------------------------------------------------------------------------------------------------------
-
-
-// 其他的包
+// 获取 opt 数据包的每一个字段
 // ------------------------------------------------------------------------------------------------------------
 static inline unsigned char *get_other_opt_hash_start_pointer(struct OptHeader *opt_header) {
     return (unsigned char *) (opt_header) +

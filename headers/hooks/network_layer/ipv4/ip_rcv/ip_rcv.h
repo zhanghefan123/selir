@@ -18,19 +18,27 @@ int lir_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type *pt,
 int icing_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev);
 int opt_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type *pt, struct net_device* orig_dev);
 int selir_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type* pt, struct net_device* orig_dev);
+int fast_selir_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type* pt, struct net_device* orig_dev);
+int session_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type* pt, struct net_device* orig_dev);
+int multicast_session_rcv(struct sk_buff* skb, struct net_device* dev, struct packet_type* pt, struct net_device* orig_dev);
 
 
 struct sk_buff* lir_rcv_validate(struct sk_buff* skb, struct net* net);
 struct sk_buff* icing_rcv_validate(struct sk_buff*skb, struct net* net);
 struct sk_buff* opt_rcv_validate(struct sk_buff* skb, struct net* net);
 struct sk_buff* selir_rcv_validate(struct sk_buff* skb, struct net* net);
+struct sk_buff* session_rcv_validate(struct sk_buff* skb, struct net* net);
+struct sk_buff* multicast_session_rcv_validate(struct sk_buff* skb, struct net* net);
 
-int opt_forward_session_establish_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev);
-int opt_forward_data_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev);
+
+//int opt_forward_session_establish_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev);
+int opt_forward_data_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev, u64* encryption_time_elapsed);
 int lir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev);
-int icing_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev);
-int selir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev);
-
+int icing_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev, u64* encryption_time_elapsed);
+int selir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev, u64* encryption_time_elapsed);
+int fast_selir_forward_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns, struct net_device* in_dev);
+int forward_session_setup_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns);
+int forward_multicast_session_setup_packets(struct sk_buff* skb, struct PathValidationStructure* pvs, struct net* current_ns);
 
 void add_ip_rcv_to_hook(void);
 extern struct ftrace_hook hooks[MAXIMUM_SUPPORTED_HOOK_FUNCTIONS];

@@ -36,6 +36,7 @@ add_executable(lkm
         src/structure/routing/hash_based_routing_table.c
         src/structure/routing/routing_calc_res.c
         src/structure/routing/routing_table_entry.c
+        src/structure/header/fast_selir_header.c
         src/structure/header/selir_header.c
         src/structure/header/lir_header.c
         src/structure/header/icing_header.c
@@ -58,17 +59,22 @@ add_executable(lkm
         src/hooks/network_layer/ipv4/ip_local_out/impl.c
         src/hooks/network_layer/ipv4/ip_send_check/impl.c
         src/hooks/network_layer/ipv4/ip_output/impl.c
+        src/hooks/network_layer/ipv4/ip_rcv/fast_selir_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/selir_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/lir_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/icing_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/opt_rcv.c
+        src/hooks/network_layer/ipv4/ip_rcv/session_rcv.c
+        src/hooks/network_layer/ipv4/ip_rcv/multicast_session_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/hook.c
         src/hooks/network_layer/ipv4/ip_append_data/impl.c
         src/hooks/network_layer/ipv4/ip_make_skb/lir_make_skb.c
         src/hooks/network_layer/ipv4/ip_make_skb/icing_make_skb.c
         src/hooks/network_layer/ipv4/ip_make_skb/opt_make_skb.c
         src/hooks/network_layer/ipv4/ip_make_skb/selir_make_skb.c
+        src/hooks/network_layer/ipv4/ip_make_skb/selir_fast_make_skb.c
         src/hooks/network_layer/ipv4/ip_make_skb/session_make_skb.c
+        src/hooks/network_layer/ipv4/ip_make_skb/multicast_session_make_skb.c
         src/hooks/network_layer/ipv4/ip_send_skb/impl.c
         src/hooks/network_layer/ipv4/ip_setup_cork/impl.c
         src/hooks/network_layer/ipv4/ip_packet_forward/impl.c

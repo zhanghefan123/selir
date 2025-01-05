@@ -10,7 +10,7 @@
  * @return
  */
 int self_defined_ip_setup_cork(struct sock *sk, struct inet_cork *cork, struct ipcm_cookie *ipc, struct RoutingCalcRes* rcr) {
-    cork->fragsize = rcr->output_interface->mtu;
+    cork->fragsize = rcr->ite->interface->mtu;
     if (!inetdev_valid_mtu(cork->fragsize))
         return -ENETUNREACH;
     cork->gso_size = ipc->gso_size;

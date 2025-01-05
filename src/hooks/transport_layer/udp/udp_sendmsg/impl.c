@@ -7,6 +7,7 @@
 #include "structure/routing/variables.h"
 #include "structure/namespace/namespace.h"
 #include "structure/path_validation_sock_structure.h"
+#include "hooks/network_layer/ipv4/ip_make_skb/ip_make_skb.h"
 #include "hooks/transport_layer/udp/udp_sendmsg/udp_sendmsg.h"
 #include "hooks/transport_layer/udp/udp_send_skb/udp_send_skb.h"
 #include "hooks/network_layer/ipv4/ip_make_skb/ip_make_skb.h"
@@ -46,6 +47,11 @@ bool resolve_udp_sendmsg_inner_functions(void) {
  * @return
  */
 int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
+    // 起始时间
+    u64 start_time = ktime_get_real_ns();
+    u64 encryption_time_elapsed = 0;
+    u64 enc_start_time;
+    u64 enc_time_elapsed;
     struct inet_sock *inet = inet_sk(sk);
     struct udp_sock *up = udp_sk(sk);
     DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
@@ -83,16 +89,18 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     pvs = get_pvs_from_ns(current_ns);
     option = inet->inet_opt;
     dest_and_proto_info = resolve_opt_for_dest_and_proto_info(option);
-    if(NULL == dest_and_proto_info){
+    if (NULL == dest_and_proto_info) {
         kfree_skb(skb);
         return 0;
     }
     source = pvs->node_id;
+    // 8. 是否已经发送了会话建立的数据包
+    bool sent_first_packet;
     // -----------------------------------------------------
 
     // zhf add new code -- search route
     // -----------------------------------------------------
-    rcr = construct_rcr_with_dest_and_proto_info(pvs, dest_and_proto_info, source);
+    rcr = construct_rcr_with_user_space_info(pvs, dest_and_proto_info, source);
     if (NULL == rcr) {
         return -EINVAL;
     }
@@ -260,7 +268,7 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
 
     // 路由计算完成后，知道源地址是什么了, 就进行源地址的更新
     // ----------------------------------------------------------------------------
-    saddr = rcr->output_interface->ip_ptr->ifa_list->ifa_address;
+    saddr = rcr->ite->interface->ip_ptr->ifa_list->ifa_address;
     fl4->saddr = saddr;
     // ----------------------------------------------------------------------------
 
@@ -284,32 +292,41 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
         } else if (ICING_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
             skb = self_defined_icing_make_skb(sk, fl4, getfrag, msg, ulen,
                                               sizeof(struct udphdr), &ipc,
-                                              &cork, msg->msg_flags, rcr);
+                                              &cork, msg->msg_flags, rcr, &encryption_time_elapsed);
         } else {
-            // 首先判断是否已经 sent_first_packet
-            bool sent_first_packet;
-            if(NULL == sk->path_validation_sock_structure){
+            if (NULL == sk->path_validation_sock_structure) {
                 sent_first_packet = false;
             } else {
                 sent_first_packet = true;
             }
-            if(sent_first_packet){ // 如果已经进行了会话的建立
+            if (sent_first_packet) { // 如果已经进行了会话的建立
                 if (OPT_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
                     skb = self_defined_opt_make_skb(sk, fl4, getfrag, msg, ulen,
                                                     sizeof(struct udphdr), &ipc,
-                                                    &cork, msg->msg_flags, rcr);
+                                                    &cork, msg->msg_flags, rcr, &encryption_time_elapsed);
                 } else if (SELIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
                     skb = self_defined_selir_make_skb(sk, fl4, getfrag, msg, ulen,
                                                       sizeof(struct udphdr), &ipc,
-                                                      &cork, msg->msg_flags, rcr);
+                                                      &cork, msg->msg_flags, rcr, &encryption_time_elapsed);
+                } else if (FAST_SELIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
+                    skb = self_defined_fast_selir_make_skb(sk, fl4, getfrag, msg, ulen,
+                                                           sizeof(struct udphdr), &ipc,
+                                                           &cork, msg->msg_flags, rcr, &encryption_time_elapsed);
                 } else {
                     LOG_WITH_PREFIX("unsupported protocol");
                     return -EINVAL;
                 }
             } else { // 如果尚且还没有进行会话的建立
-                skb = self_defined_session_make_skb(sk, fl4, getfrag, msg, ulen,
-                                                    sizeof(struct udphdr), &ipc,
-                                                    &cork, msg->msg_flags, rcr);
+                // 根据 rcr 之中的目的节点的数量进行判断
+                if (rcr->number_of_routes == 1) {
+                    skb = self_defined_session_make_skb(sk, fl4, getfrag, msg, ulen,
+                                                        sizeof(struct udphdr), &ipc,
+                                                        &cork, msg->msg_flags, rcr);
+                } else {
+                    skb = self_defined_multicast_session_make_skb(sk, fl4, getfrag, msg, ulen,
+                                                                  sizeof(struct udphdr), &ipc,
+                                                                  &cork, msg->msg_flags, rcr);
+                }
             }
         }
         // ------------------------------------------------------------------------------
@@ -318,8 +335,9 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
         err = PTR_ERR(skb);
         if (!IS_ERR_OR_NULL(skb)) {
             // 当 skb_copy 的时候并不会进行 skb->sk 的拷贝
-            err = self_defined_udp_send_skb(skb,fl4,
-                                            &cork,rcr,
+            // 这里可能是真正的阻塞的原因
+            err = self_defined_udp_send_skb(skb, fl4,
+                                            &cork, rcr,
                                             dest_and_proto_info->path_validation_protocol);
         }
         // ------------------------------------------------------------------------------
@@ -328,7 +346,30 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
     }
     // ----------------------------------------------------------------------------
 
+
+
     out:
+    // 进行处理时间的打印
+    // ----------------------------------------------------------------------------
+    u64 time_elapsed = ktime_get_real_ns() - start_time;
+    if (sent_first_packet) {
+        if (ICING_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
+//            printk(KERN_EMERG "icing source sendmsg time elapsed: %llu ns\n", time_elapsed);
+//            printk(KERN_EMERG "icing source encryption time elapsed: %llu ns\n", encryption_time_elapsed);
+        } else if (OPT_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
+//            printk(KERN_EMERG "opt source sendmsg time elapsed: %llu ns\n", time_elapsed);
+//            printk(KERN_EMERG "opt source encryption time elapsed: %llu ns\n", encryption_time_elapsed);
+        } else if (SELIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
+//            printk(KERN_EMERG "selir source sendmsg time elapsed: %llu ns\n", time_elapsed);
+//            printk(KERN_EMERG "selir source encryption time elapsed: %llu ns\n", encryption_time_elapsed);
+        } else if (FAST_SELIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol) {
+//            printk(KERN_EMERG "fast selir source sendmsg time elapsed: %llu ns\n", time_elapsed);
+//            printk(KERN_EMERG "fast selir source encryption time elapsed: %llu ns\n", encryption_time_elapsed);
+        }
+    }
+    // ----------------------------------------------------------------------------
+
+
     out_free:
     if (free)
         kfree(ipc.opt);

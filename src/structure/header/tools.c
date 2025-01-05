@@ -12,6 +12,8 @@ __u16 get_source_from_skb(struct sk_buff* skb){
         return opt_hdr(skb)->source;
     } else if(SELIR_VERSION_NUMBER == version){
         return selir_hdr(skb)->source;
+    } else if(FAST_SELIR_VERSION_NUMBER == version){
+        return fast_selir_hdr(skb)->source;
     } else {
         LOG_WITH_PREFIX("unsupported version");
         return 0;

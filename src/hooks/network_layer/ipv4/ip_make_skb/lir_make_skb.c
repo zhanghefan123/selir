@@ -154,7 +154,7 @@ struct sk_buff *self_defined__lir_make_skb(struct sock *sk,
     // ---------------------------------------------------------------------------------------
     bloom_pointer_start = (unsigned char *) lir_header + sizeof(struct LiRHeader) + memory_of_destinations;
     memcpy(bloom_pointer_start, rcr->bitset, pvs->bloom_filter->bf_effective_bytes);
-    print_memory_in_hex(bloom_pointer_start, pvs->bloom_filter->bf_effective_bytes);
+    // print_memory_in_hex(bloom_pointer_start, pvs->bloom_filter->bf_effective_bytes);
     // ---------------------------------------------------------------------------------------
 
     // 等待一切就绪之后计算 lir_send_check

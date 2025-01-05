@@ -9,20 +9,24 @@
 
 int selir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev) {
     // 1. 初始化变量
+    u64 start_time = ktime_get_real_ns();
+    u64 encryption_elapsed_time = 0;
     struct net *net = dev_net(dev);
-    struct SELiRHeader *selir_header = selir_hdr(skb);
     struct PathValidationStructure *pvs = get_pvs_from_ns(net);
+    bool if_log_time = false;
+
+    struct SELiRHeader *selir_header = selir_hdr(skb);
+
     int process_result;
-    // 2. 进行消息的打印 - 为了进行测试这里就先不进行打印
-    // PRINT_SELIR_HEADER(selir_header);
-    // 3. 进行初级的校验
+
+    // 2. 进行初级的校验
     skb = selir_rcv_validate(skb, net);
     if (NULL == skb) {
         LOG_WITH_PREFIX("validation failed");
         return 0;
     }
     // 4. 进行实际的转发
-    process_result = selir_forward_packets(skb, pvs, net, orig_dev);
+    process_result = selir_forward_packets(skb, pvs, net, orig_dev, &encryption_elapsed_time);
     // 5. 判断是否需要上层提交或者释放
     if (NET_RX_SUCCESS == process_result) {
         // 5.1 数据包向上层进行提交
@@ -30,14 +34,20 @@ int selir_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p
         // LOG_WITH_PREFIX("local deliver");
         __be32 receive_interface_address = orig_dev->ip_ptr->ifa_list->ifa_address;
         pv_local_deliver(skb, selir_header->protocol, receive_interface_address);
-        return 0;
+        if_log_time = true;
     } else {
         // 5.2 进行数据包的释放
         // 为了进行速率测试, 这里就先不进行打印
         // LOG_WITH_PREFIX("drop packet");
         kfree_skb_reason(skb, SKB_DROP_REASON_IP_INHDR);
-        return 0;
     }
+
+    if(if_log_time){
+        printk(KERN_EMERG "selir destination forward time elapsed = %llu ns\n", ktime_get_real_ns() - start_time);
+        printk(KERN_EMERG "selir destination encryption time elapsed = %llu ns\n", encryption_elapsed_time);
+    }
+
+    return 0;
 }
 
 
@@ -161,73 +171,117 @@ struct sk_buff *selir_rcv_validate(struct sk_buff *skb, struct net *net) {
 }
 
 /**
+ * 中间节点进行证明的验证
+ * @param ste 会话表项
+ * @param pvs 路径验证数据结构
+ * @param static_fields_hash 静态字段哈希
+ * @param pvf_start_pointer 数据包内的 pvf
+ * @param ppf_start_pointer 数据包内的 ppf
+ * @return
+ */
+static bool intermediate_proof_verification(struct SessionTableEntry *ste,
+                                           struct PathValidationStructure *pvs,
+                                           unsigned char* static_fields_hash,
+                                           unsigned char* pvf_start_pointer,
+                                           unsigned char* ppf_start_pointer,
+                                           struct BloomFilter* bf){
+
+    // 判断结果
+    bool validation_result = false;
+
+    // 进行布隆过滤器 bitarray 的修改
+    unsigned char* original_bit_set = bf->bitset;
+    bf->bitset = ppf_start_pointer;
+
+    // 进行 pvf || hash 这个 combination 的计算
+    unsigned char combination [PVF_LENGTH + HASH_OUTPUT_LENGTH] = {0};
+    memcpy(combination, pvf_start_pointer, PVF_LENGTH);
+    memcpy(combination + PVF_LENGTH, static_fields_hash, HASH_OUTPUT_LENGTH);
+
+    // 进行 next pvf 的计算
+    unsigned char* next_pvf = calculate_hmac(pvs->hmac_api,
+                                             combination,
+                                             PVF_LENGTH + HASH_OUTPUT_LENGTH,
+                                             ste->session_key,
+                                             HMAC_OUTPUT_LENGTH);
+
+
+    // 判断是否在布隆过滤器之中
+    if(0 == check_element_in_bloom_filter(bf, next_pvf, 16)){
+        validation_result = true;
+    }
+
+    // 进行 bitarray 的还原
+    bf->bitset = original_bit_set;
+
+    // 进行 pvf 的更新
+    memcpy(pvf_start_pointer, next_pvf, PVF_LENGTH);
+
+    // 进行 next_pvf 的释放
+    kfree(next_pvf);
+
+    return validation_result;
+}
+
+/**
  * 进行证明的校验
  * @param ste 会话表项
  * @param pvs 路径验证数据结构
  * @param static_fields_hash 静态字段哈希
- * @param pvf 数据包内的 pvf
+ * @param pvf_start_pointer 数据包内的 pvf_start_pointer
  * @return
  */
-static int proof_verification(struct SessionTableEntry *ste,
-                              struct PathValidationStructure *pvs,
-                              unsigned char *static_fields_hash,
-                              unsigned char *pvf) {
-    int temp = 0;
+static int destination_proof_verification(struct SessionTableEntry *ste,
+                                          struct PathValidationStructure *pvs,
+                                          unsigned char *static_fields_hash,
+                                          unsigned char *pvf_start_pointer) {
     int index = 0;
-    int count = 0;
     unsigned char *session_key = NULL;
     unsigned char *hmac_result = NULL;
-    int link_identifier;
-    // 首先计算一次 static_fields_hash
-    unsigned char final_pvf[PVF_LENGTH] = {0};
-    for (index = 1; index < ste->path_length; index++) {
-        // 进行 session_key 的获取
-        session_key = ste->session_keys[index];
+    // 首先利用 destination session key 进行 hmac 的计算
+    hmac_result = calculate_hmac(pvs->hmac_api,
+                                 static_fields_hash,
+                                 HASH_OUTPUT_LENGTH,
+                                 ste->session_key,
+                                 HMAC_OUTPUT_LENGTH);
 
-        // 进行 hmac_result 的计算
+    for(index = 1; index < ste->path_length; index++){
+        // 进行 session key 的获取
+        session_key = ste->session_keys[index];
+        // 进行 combination 的构建
+        unsigned char combination[PVF_LENGTH + HASH_OUTPUT_LENGTH] = {0};
+        // 进行 combination 的填充
+        memcpy(combination, hmac_result, PVF_LENGTH);
+        memcpy(combination + PVF_LENGTH, static_fields_hash, HASH_OUTPUT_LENGTH);
+        // 进行 hmac 的释放
+        kfree(hmac_result);
+        // 进行 hmac 的重新计算
         hmac_result = calculate_hmac(pvs->hmac_api,
-                                     static_fields_hash,
-                                     HASH_OUTPUT_LENGTH,
+                                     combination,
+                                     PVF_LENGTH + HASH_OUTPUT_LENGTH,
                                      session_key,
                                      HMAC_OUTPUT_LENGTH);
-        // 进行和 mac result 的异或
-        for (temp = 0; temp < 2; temp++) {
-            *((u64 *) final_pvf + temp) = *((u64 *) final_pvf + temp) ^ *((u64 *) (hmac_result) + temp);
-        }
-
-        // 和 link identifier 的异或
-        link_identifier = ste->opt_hops[count].link_id;
-        (*(int *) (final_pvf)) = (*(int *) (final_pvf)) ^ link_identifier;
-
-        // 进行 mac result 的释放
-        kfree(hmac_result);
-
-        count += 1;
     }
 
     // 进行两个 pvf 之间的相互的比较
-    bool result = memory_compare(final_pvf, pvf, PVF_LENGTH);
-    if(result){
-        return NET_RX_SUCCESS;
-    } else {
-        return NET_RX_DROP;
-    }
+    bool result = memory_compare(hmac_result, pvf_start_pointer, PVF_LENGTH);
+    // 进行 hmac_result 的释放
+    kfree(hmac_result);
+    return result;
 }
 
 int selir_forward_packets(struct sk_buff *skb, struct PathValidationStructure *pvs, struct net *current_ns,
-                          struct net_device *in_dev) {
+                          struct net_device *in_dev, u64* encryption_elased_time) {
     // 1. 初始化变量
     int index;
     int result = NET_RX_DROP;
-    struct ArrayBasedInterfaceTable *abit = pvs->abit;
     struct SELiRHeader *selir_header = selir_hdr(skb);
     int current_node_id = pvs->node_id;
     unsigned char *pvf_start_pointer = get_selir_pvf_start_pointer(selir_header);
     unsigned char *ppf_start_pointer = get_selir_ppf_start_pointer(selir_header);
     unsigned char *selir_dest_pointer = get_selir_dest_start_pointer(selir_header, selir_header->ppf_len);
-    unsigned char *original_bitset = pvs->bloom_filter->bitset;
-    pvs->bloom_filter->bitset = ppf_start_pointer;
     struct SessionID *session_id = (struct SessionID *) (get_selir_session_id_start_pointer(selir_header));
+    bool isDestination = false;
 
     // 2. 进行 session_table_entry 的查找
     struct SessionTableEntry *ste = find_ste_in_hbst(pvs->hbst, session_id);
@@ -239,71 +293,59 @@ int selir_forward_packets(struct sk_buff *skb, struct PathValidationStructure *p
     // 3. 计算静态字段哈希
     unsigned char *static_fields_hash = calculate_selir_hash(pvs->hash_api, selir_header);
 
-    // 4. 判断是否需要进行本地的交付以及 PVF 是否正确
+    // 4. 判断是否需要进行本地的交付
     for (index = 0; index < selir_header->dest_len; index++) {
         if (current_node_id == selir_dest_pointer[index]) {
-            result = proof_verification(ste, pvs,
-                                        static_fields_hash,
-                                        pvf_start_pointer);
+            isDestination = true;
             break;
         }
     }
 
-    // 5. 通过当前节点的 session_key 计算 hmac_result
-    unsigned char *hmac_result = calculate_hmac(pvs->hmac_api,
+
+    // 5. 如果是目的节点的话
+    if(isDestination){
+        // 1. 如果是目的节点
+        u64 start_time = ktime_get_real_ns();
+        result = destination_proof_verification(ste,
+                                                pvs,
                                                 static_fields_hash,
-                                                HASH_OUTPUT_LENGTH,
-                                                ste->session_key,
-                                                HMAC_OUTPUT_LENGTH);
-
-    // 6. 将 pvf (保持和 opt 相同 16 字节) 和 hmac 进行异或的操作
-    int temp;
-    for (temp = 0; temp < 2; temp++) {
-        *((u64 *) pvf_start_pointer + temp) = *((u64 *) hmac_result + temp) ^ *((u64 *) (pvf_start_pointer) + temp);
-    }
-
-    // 7. 如果可以进行本地的交付
-    if (NET_RX_SUCCESS == result) {
-        if (0 == check_element_in_bloom_filter(pvs->bloom_filter, pvf_start_pointer, 16)) {
-            // 为了进行速率测试, 这里就先不进行打印
-            // LOG_WITH_PREFIX("destination validation succeed");
-        } else {
-            // 为了进行速率测试, 这里就先不进行打印
-            // LOG_WITH_PREFIX("destination validation failed");
-            result = NET_RX_DROP;
+                                                pvf_start_pointer);
+        *encryption_elased_time = ktime_get_real_ns() - start_time;
+        kfree(static_fields_hash);
+        if(result){// 1.1 如果成功验证, 进行本地的交付
+            return NET_RX_SUCCESS;
+        } else {// 1.2 如果验证失败, 直接进行丢弃
+            return NET_RX_DROP;
         }
-    }
+    } else {
+        // 2. 如果是中间节点
+        u64 start_time = ktime_get_real_ns();
+        result = intermediate_proof_verification(ste, pvs,
+                                                 static_fields_hash,
+                                                 pvf_start_pointer,
+                                                 ppf_start_pointer,
+                                                 pvs->bloom_filter);
+        *encryption_elased_time = ktime_get_real_ns() - start_time;
 
-    // 8. 进行接口表的遍历
-    for (index = 0; index < abit->number_of_interfaces; index++) {
-        // 接口表项
-        struct InterfaceTableEntry *ite = abit->interfaces[index];
-        // 链路标识
-        int link_identifier = ite->link_identifier;
-        // 进行异或
-        (*(int *) (pvf_start_pointer)) = (*(int *) (pvf_start_pointer)) ^ link_identifier;
-        // 判断是否在其中
-        if (0 == check_element_in_bloom_filter(pvs->bloom_filter, pvf_start_pointer, 16)) {
-            // 进行校验和的重新计算
+
+        // 2.1 如果成功验证, 按照 sessionid 对应的路径进行转发
+        if(result){
+            // 进行重新的校验和的计算
             selir_send_check(selir_header);
             // 进行数据包的拷贝
             struct sk_buff *copied_skb = skb_copy(skb, GFP_KERNEL);
             // 进行数据包的转发
-            pv_packet_forward(copied_skb, ite->interface, current_ns);
-            // 为了进行速率测试, 这里就先不进行打印, 打印转发了数据包
-            // LOG_WITH_PREFIX("forward packet");
-        } else {
-            // 为了进行速率测试, 这里就先不进行打印
-            // LOG_WITH_PREFIX("not forward packet");
+            pv_packet_forward(copied_skb, ste->ite, current_ns);
+            // 进行哈希的释放
+            kfree(static_fields_hash);
+            // 进行验证结果的打印
+            // LOG_WITH_PREFIX("validation succeed");
+            // 进行结果的返回
+            return NET_RX_DROP;
+        } else { // 2.2 如果验证失败, 丢弃数据包
+            kfree(static_fields_hash);
+            LOG_WITH_PREFIX("validation failed");
+            return NET_RX_DROP;
         }
-        // 再次进行异或就还原了
-        (*(int *) (pvf_start_pointer)) = (*(int *) (pvf_start_pointer)) ^ link_identifier;
     }
-
-    // 8. 最后进行哈希和 hmac 的释放
-    kfree(hmac_result);
-    kfree(static_fields_hash);
-    pvs->bloom_filter->bitset = original_bitset;
-
-    return result;
 }

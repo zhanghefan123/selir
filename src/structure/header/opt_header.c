@@ -25,14 +25,7 @@ void PRINT_OPT_HEADER(struct OptHeader* opt_header){
     printk(KERN_EMERG "check: %d\n", opt_header->check);
     printk(KERN_EMERG "current_path_index: %d\n", opt_header->current_path_index);
     // 2. 判断版本类型
-    if(OPT_ESTABLISH_VERSION_NUMBER == opt_header->version){
-        int index;
-        int path_length = *((__u16*)(get_first_opt_path_length_start_pointer(opt_header)));
-        struct OptHop* hops = (struct OptHop*)(get_first_opt_path_start_pointer(opt_header));
-        for(index = 0; index < path_length; index++){
-            printk(KERN_EMERG "node_id: %d, link_identifier: %d\n", hops[index].node_id, hops[index].link_id);
-        }
-    } else if(OPT_DATA_VERSION_NUMBER == opt_header->version){
+    if(OPT_DATA_VERSION_NUMBER == opt_header->version){
         LOG_WITH_PREFIX("current not support opt data"); // not option data
     } else {
         LOG_WITH_PREFIX("unsupported opt header");
