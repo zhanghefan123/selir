@@ -74,11 +74,11 @@ static int get_multicast_session_header_size(struct RoutingCalcRes *rcr) {
 static unsigned char *calculate_session_id(struct shash_desc *hash_api,
                                            int source,
                                            time64_t current_time) {
-    unsigned char *data[4] = {
+    unsigned char *data[2] = {
             (unsigned char *) (&(source)),
             (unsigned char *) (&current_time)
     };
-    int lengths[4] = {
+    int lengths[2] = {
             sizeof(int), // source 的字节数
             sizeof(time64_t) // 时间的大小
     };
@@ -140,6 +140,11 @@ static void fill_multicast_session_packet_fields(struct MulticastSessionHeader *
     fill_multicast_session_packet_destinations(session_header, rcr);
 }
 
+/**
+ * 进行所有的 key 的数量的计算
+ * @param rcr 路由计算结果
+ * @return
+ */
 static int get_keys_size(struct RoutingCalcRes* rcr){
     // path 1:  1->2->3->4->5
     // path 2:  1->2->3->6->7
@@ -150,13 +155,18 @@ static int get_keys_size(struct RoutingCalcRes* rcr){
     // 其他的 path2: 3->6->7
 
     // 计算所有的 keys
+
+    // [2] -> [3] -> [4]
+    // [2] -> [3] -> [6]
+
+
     int keys_size = 0;
     int index;
     for(index = 0; index < rcr->number_of_routes; index++){
         if(index == 0){
-            keys_size = keys_size + rcr->rtes[index]->path_length;
+            keys_size = keys_size + rcr->rtes[index]->path_length;  // 1->2->3
         } else {
-            keys_size = keys_size + rcr->rtes[index]->path_length - 1;
+            keys_size = keys_size + rcr->rtes[index]->path_length - 1; // ->4->5
         }
     }
     return keys_size;
@@ -201,6 +211,7 @@ struct sk_buff *self_defined_multicast_session_make_skb(struct sock *sk,
 
     return self_defined__multicast_session_make_skb(sk, fl4, &queue, cork, rcr);
 }
+
 
 struct sk_buff *self_defined__multicast_session_make_skb(struct sock *sk,
                                                          struct flowi4 *fl4,
@@ -297,7 +308,7 @@ struct sk_buff *self_defined__multicast_session_make_skb(struct sock *sk,
         pvss->timestamp = ktime_get_seconds();
 
         // 进行目的节点共享密钥的计算
-        pvss->sdk =
+        pvss->sdk = calculate_shared_destination_key(pvs->hmac_api, &session_id);
 
         // 计算所有的 keys 总共有多少哥
         int keys_size = get_keys_size(rcr);
@@ -307,24 +318,17 @@ struct sk_buff *self_defined__multicast_session_make_skb(struct sock *sk,
         sk->path_validation_sock_structure = (void*)(pvss);
         // 密钥值
         int session_key_position = 0;
-        char secret_value[20];
         int index;
         for(index = 0; index < rcr->number_of_routes; index++){
-            // 如果是主路由的话, 全部计算
             if(index == 0){
                 int inner_index;
                 struct RoutingTableEntry* rte = rcr->rtes[index];
                 for(inner_index = 0; inner_index < rte->path_length; inner_index++){
                     // 节点 id
                     int node_id = rte->node_ids[inner_index];
-                    printk(KERN_EMERG "calculate session key for node %d\n", node_id);
                     // 计算 session_key
-                    unsigned char* session_key = calculate_hmac(pvs->hmac_api,
-                                                                (unsigned char*)(&session_id),
-                                                                sizeof(struct SessionID),
-                                                                (unsigned char*)(secret_value),
-                                                                (int)(strlen(secret_value)));
-                    // 填充到 session_keys 之中
+                    unsigned char* session_key = calculate_intermediate_session_key(pvs->hmac_api, &session_id, node_id);
+                    // 进行存储
                     pvss->session_keys[session_key_position] = session_key;
                     session_key_position++;
                 }
@@ -334,19 +338,14 @@ struct sk_buff *self_defined__multicast_session_make_skb(struct sock *sk,
                 for(inner_index = 0; inner_index < rte->path_length - 1; inner_index++){
                     // 节点 id
                     int node_id = rte->node_ids[inner_index];
-                    printk(KERN_EMERG "calculate session key for node %d\n", node_id);
                     // 计算 session_key
-                    unsigned char* session_key = calculate_hmac(pvs->hmac_api,
-                                                                (unsigned char*)(&session_id),
-                                                                sizeof(struct SessionID),
-                                                                (unsigned char*)(secret_value),
-                                                                (int)(strlen(secret_value)));
-                    // 填充到 session_keys 之中
+                    unsigned char* session_key = calculate_intermediate_session_key(pvs->hmac_api, &session_id, node_id);
                     pvss->session_keys[session_key_position] = session_key;
                     session_key_position++;
                 }
             }
         }
+
     }
     // ----------------------------------------------------------------------------------------
 

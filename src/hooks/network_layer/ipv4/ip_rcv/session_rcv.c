@@ -137,7 +137,7 @@ static void intermediate_process_session_packets(struct sk_buff *skb,
                                                 (unsigned char *) (secret_value),
                                                 (int) (strlen(secret_value)));
     // 创建会话表项目
-    struct SessionTableEntry *ste = init_ste_in_intermediate(session_id, ite, session_key, previous_node);
+    struct SessionTableEntry *ste = init_ste_in_intermediate_unicast(session_id, ite, session_key, previous_node);
     // 将会话表项添加到 hbst 之中
     add_entry_to_hbst(pvs->hbst, ste);
     // 进行 current_path_index 的更新

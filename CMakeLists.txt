@@ -66,6 +66,7 @@ add_executable(lkm
         src/hooks/network_layer/ipv4/ip_rcv/opt_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/session_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/multicast_session_rcv.c
+        src/hooks/network_layer/ipv4/ip_rcv/multicast_selir_rcv.c
         src/hooks/network_layer/ipv4/ip_rcv/hook.c
         src/hooks/network_layer/ipv4/ip_append_data/impl.c
         src/hooks/network_layer/ipv4/ip_make_skb/lir_make_skb.c
@@ -75,6 +76,7 @@ add_executable(lkm
         src/hooks/network_layer/ipv4/ip_make_skb/selir_fast_make_skb.c
         src/hooks/network_layer/ipv4/ip_make_skb/session_make_skb.c
         src/hooks/network_layer/ipv4/ip_make_skb/multicast_session_make_skb.c
+        src/hooks/network_layer/ipv4/ip_make_skb/multicast_selir_make_skb.c
         src/hooks/network_layer/ipv4/ip_send_skb/impl.c
         src/hooks/network_layer/ipv4/ip_setup_cork/impl.c
         src/hooks/network_layer/ipv4/ip_packet_forward/impl.c

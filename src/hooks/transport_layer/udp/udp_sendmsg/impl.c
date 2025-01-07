@@ -312,6 +312,10 @@ int self_defined_udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len) {
                     skb = self_defined_fast_selir_make_skb(sk, fl4, getfrag, msg, ulen,
                                                            sizeof(struct udphdr), &ipc,
                                                            &cork, msg->msg_flags, rcr, &encryption_time_elapsed);
+                } else if(MULTICAST_SELIR_VERSION_NUMBER == dest_and_proto_info->path_validation_protocol){
+                    skb = self_defined_multicast_selir_make_skb(sk, fl4, getfrag, msg, ulen,
+                                                                sizeof(struct udphdr), &ipc,
+                                                                &cork, msg->msg_flags, rcr, &encryption_time_elapsed);
                 } else {
                     LOG_WITH_PREFIX("unsupported protocol");
                     return -EINVAL;

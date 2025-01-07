@@ -3,21 +3,65 @@
 #include "structure/header/session_header.h"
 
 
-struct SessionTableEntry* init_ste_in_dest_for_multicast(struct SessionID* session_id, int encrypt_count, int path_length, unsigned char* session_key) {
-    struct SessionTableEntry* ste = (struct SessionTableEntry*) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
+unsigned char *calculate_shared_destination_key(struct shash_desc *hmac_api,
+                                                struct SessionID *session_id) {
+    char secret_value[20];
+    snprintf(secret_value, sizeof(secret_value), "sdk");
+    unsigned char *shared_destination_key = calculate_hmac(hmac_api,
+                                                           (unsigned char *) (session_id),
+                                                           sizeof(struct SessionID),
+                                                           (unsigned char *) (secret_value),
+                                                           (int) (strlen(secret_value)));
+    return shared_destination_key;
+}
+
+unsigned char *calculate_intermediate_session_key(struct shash_desc *hmac_api,
+                                                  struct SessionID *session_id,
+                                                  int node_id) {
+    char secret_value[20];
+    snprintf(secret_value, sizeof(secret_value), "key-%d", node_id);
+    unsigned char *intermediate_session_key = calculate_hmac(hmac_api,
+                                                             (unsigned char*)(session_id),
+                                                             sizeof(struct SessionID),
+                                                             (unsigned char*)(secret_value),
+                                                             (int)(strlen(secret_value)));
+    return intermediate_session_key;
+}
+
+struct SessionTableEntry *
+init_ste_in_dest_for_multicast(struct SessionID *session_id, int encrypt_count, int path_length,
+                               unsigned char *session_key) {
+    struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
     ste->session_id.first_part = session_id->first_part;
     ste->session_id.second_part = session_id->second_part;
     ste->encrypt_len = encrypt_count;
     ste->encrypt_order = (int *) (kmalloc(sizeof(int) * encrypt_count, GFP_KERNEL));
     ste->ite = NULL;
     ste->previous_node = -1;
-    ste->session_keys = (unsigned char**) (kmalloc(sizeof(unsigned char *) * encrypt_count, GFP_KERNEL));
+    ste->session_keys = (unsigned char **) (kmalloc(sizeof(unsigned char *) * encrypt_count, GFP_KERNEL));
     ste->path_length = path_length;
     ste->session_hops = NULL;
     ste->session_key = session_key;
+    ste->is_destination = true;
     return ste;
 }
 
+
+struct SessionTableEntry *init_ste_in_intermediate_for_multicast(struct SessionID *session_id,
+                                                                 struct InterfaceTableEntry **ites,
+                                                                 unsigned char *session_key) {
+    struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
+    ste->session_id.first_part = session_id->first_part;
+    ste->session_id.second_part = session_id->second_part;
+    ste->encrypt_len = 0;
+    ste->encrypt_order = NULL;
+    ste->ites = ites;
+    ste->previous_node = -1;
+    ste->session_keys = NULL;
+    ste->session_key = session_key;
+    ste->is_destination = false;
+    return ste;
+}
 
 /**
  * 初始化会话表项
@@ -30,7 +74,7 @@ struct SessionTableEntry *init_ste_in_dest_unicast(struct SessionID *session_id,
                                                    int encrypt_count,
                                                    int previous_node,
                                                    int path_length,
-                                                   unsigned char* session_key) {
+                                                   unsigned char *session_key) {
     struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
     ste->session_id.first_part = session_id->first_part;
     ste->session_id.second_part = session_id->second_part;
@@ -38,32 +82,20 @@ struct SessionTableEntry *init_ste_in_dest_unicast(struct SessionID *session_id,
     ste->encrypt_order = (int *) (kmalloc(sizeof(int) * encrypt_count, GFP_KERNEL));
     ste->ite = NULL;
     ste->previous_node = previous_node;
-    ste->session_keys = (unsigned char**) (kmalloc(sizeof(unsigned char *) * encrypt_count, GFP_KERNEL));
+    ste->session_keys = (unsigned char **) (kmalloc(sizeof(unsigned char *) * encrypt_count, GFP_KERNEL));
     ste->path_length = path_length;
-    ste->session_hops = (struct SessionHop*)(kmalloc(sizeof(struct SessionHop) * path_length, GFP_KERNEL));
+    ste->session_hops = (struct SessionHop *) (kmalloc(sizeof(struct SessionHop) * path_length, GFP_KERNEL));
     ste->session_key = session_key;
+    ste->is_destination = true;
     return ste;
 }
 
-struct SessionTableEntry *init_ste_in_intermediate_for_multicast(struct SessionID *session_id,
-                                                   struct InterfaceTableEntry **ites,
-                                                   unsigned char* session_key){
-    struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
-    ste->session_id.first_part = session_id->first_part;
-    ste->session_id.second_part = session_id->second_part;
-    ste->encrypt_len = 0;
-    ste->encrypt_order = NULL;
-    ste->ites = ites;
-    ste->previous_node = -1;
-    ste->session_keys = NULL;
-    ste->session_key = session_key;
-    return ste;
-}
 
-struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *session_id,
-                                           struct InterfaceTableEntry *ite,
-                                           unsigned char* session_key,
-                                           int previous_node) {
+
+struct SessionTableEntry *init_ste_in_intermediate_unicast(struct SessionID *session_id,
+                                                           struct InterfaceTableEntry *ite,
+                                                           unsigned char *session_key,
+                                                           int previous_node) {
     struct SessionTableEntry *ste = (struct SessionTableEntry *) kmalloc(sizeof(struct SessionTableEntry), GFP_KERNEL);
     ste->session_id.first_part = session_id->first_part;
     ste->session_id.second_part = session_id->second_part;
@@ -73,6 +105,7 @@ struct SessionTableEntry *init_ste_in_intermediate(struct SessionID *session_id,
     ste->previous_node = previous_node;
     ste->session_keys = NULL;
     ste->session_key = session_key;
+    ste->is_destination = false;
     return ste;
 }
 

@@ -53,6 +53,7 @@ pvm-objs := \
 	src/hooks/network_layer/ipv4/ip_make_skb/selir_fast_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_make_skb/session_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_make_skb/multicast_session_make_skb.o \
+	src/hooks/network_layer/ipv4/ip_make_skb/multicast_selir_make_skb.o \
 	src/hooks/network_layer/ipv4/ip_output/impl.o \
 	src/hooks/network_layer/ipv4/ip_rcv/selir_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/session_rcv.o \
@@ -61,6 +62,7 @@ pvm-objs := \
 	src/hooks/network_layer/ipv4/ip_rcv/lir_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/icing_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/opt_rcv.o \
+	src/hooks/network_layer/ipv4/ip_rcv/multicast_selir_rcv.o \
 	src/hooks/network_layer/ipv4/ip_rcv/hook.o \
 	src/hooks/network_layer/ipv4/ip_send_check/impl.o \
 	src/hooks/network_layer/ipv4/ip_send_skb/impl.o \

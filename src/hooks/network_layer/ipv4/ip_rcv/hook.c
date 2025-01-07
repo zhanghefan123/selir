@@ -27,6 +27,8 @@ asmlinkage int hook_ip_rcv(struct sk_buff *skb,
             return selir_rcv(skb, dev, pt, orig_dev);
         } else if(FAST_SELIR_VERSION_NUMBER == version_number) {
             return fast_selir_rcv(skb, dev, pt, orig_dev);
+        } else if(MULTICAST_SELIR_VERSION_NUMBER == version_number){
+            return multicast_selir_rcv(skb, dev, pt, orig_dev);
         } else {
             LOG_WITH_PREFIX("unknown packet type");
             return -EINVAL;

@@ -95,8 +95,10 @@ static void intermediate_process_packets(struct MulticastSessionHeader *multicas
                                                 (int)(strlen(secret_value)));
     struct SessionTableEntry* ste = init_ste_in_intermediate_for_multicast(session_id, output_interfaces, session_key);
 
+    // 6. 添加会话表项
+    add_entry_to_hbst(pvs->hbst, ste);
 
-    // 6. 进行接口表的遍历, 并且进行数据包的转发
+    // 7. 进行接口表的遍历, 并且进行数据包的转发
     for (index = 0; index < 4; index++) {
         if (NULL != output_interfaces[index]) {
             struct sk_buff *skb_cp = skb_copy(skb, GFP_KERNEL);
@@ -155,6 +157,7 @@ static void destination_process_packets(struct MulticastSessionHeader *multicast
         ste->session_keys[index] = session_key_tmp;
     }
 
+    add_entry_to_hbst(pvs->hbst, ste);
 }
 
 int forward_multicast_session_setup_packets(struct sk_buff *skb, struct PathValidationStructure *pvs,

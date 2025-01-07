@@ -97,16 +97,6 @@ static inline unsigned char *get_selir_ppf_start_pointer(struct SELiRHeader *sel
            sizeof(struct TimeStamp) +
            sizeof(struct SELiRPvf);
 }
-
-static inline unsigned char *get_selir_dest_start_pointer(struct SELiRHeader *selir_header, int ppf_length) {
-    return (unsigned char *) (selir_header) +
-           sizeof(struct SELiRHeader) +
-           sizeof(struct DataHash) +
-           sizeof(struct SessionID) +
-           sizeof(struct TimeStamp) +
-           sizeof(struct SELiRPvf) +
-           ppf_length;
-}
 // ------------------------------------------------------------------------------------------------------------
 
 unsigned char *calculate_selir_hash(struct shash_desc *hash_api, struct SELiRHeader *selir_header);

@@ -23,10 +23,24 @@ static int get_selir_header_size(struct RoutingCalcRes *rcr, struct PathValidati
            sizeof(struct SessionID) +
            sizeof(struct TimeStamp) +
            sizeof(struct SELiRPvf) +
-           pvs->bloom_filter->bf_effective_bytes +
-           rcr->user_space_info->number_of_destinations;
+           pvs->bloom_filter->bf_effective_bytes;
 }
 
+/**
+ * 进行 selir 头部的大小的获取
+ * @param sk
+ * @param fl4
+ * @param getfrag
+ * @param from
+ * @param length
+ * @param transhdrlen
+ * @param ipc
+ * @param cork
+ * @param flags
+ * @param rcr
+ * @param encryption_time_elapsed
+ * @return
+ */
 struct sk_buff *self_defined_selir_make_skb(struct sock *sk,
                                             struct flowi4 *fl4,
                                             int getfrag(void *from, char *to, int offset,
@@ -71,7 +85,7 @@ struct sk_buff *self_defined_selir_make_skb(struct sock *sk,
 
 /**
  * 进行 pvf 字段的填充
- * @param hmac_api hmac_api 首部
+ * @param hmac_api hmac_api 进行 mac 计算的 api
  * @param pvf_start_pointer pvf 起始指针
  * @param static_fields_hash 静态字段哈希
  * @param destination_session_key 目的节点会话密钥
@@ -89,6 +103,14 @@ static void fill_pvf_fields(struct shash_desc *hmac_api,
     kfree(pvf_hmac_result);
 }
 
+/**
+ * 进行 ppf 字段的填充
+ * @param rte 单播路由
+ * @param pvs 路径验证数据结构
+ * @param pvss socket 数据结构
+ * @param pvf_start_pointer pvf 起始指针
+ * @param static_fields_hash 静态字段哈希
+ */
 static void fill_ppf_for_single_route(struct RoutingTableEntry *rte,
                                       struct PathValidationStructure *pvs,
                                       struct PathValidationSockStructure *pvss,
@@ -101,7 +123,7 @@ static void fill_ppf_for_single_route(struct RoutingTableEntry *rte,
     memcpy(concatenation, pvf_start_pointer, PVF_LENGTH);
     memcpy(concatenation + PVF_LENGTH, static_fields_hash, HASH_OUTPUT_LENGTH);
 
-    // 接着使用源节点后一个节点进行 pvf 的计算
+    // 接着使用第一个节点的 key 进行 pvf 的计算
     unsigned char* next_pvf = calculate_hmac(pvs->hmac_api,
                                              concatenation,
                                              PVF_LENGTH + HASH_OUTPUT_LENGTH,
@@ -109,11 +131,11 @@ static void fill_ppf_for_single_route(struct RoutingTableEntry *rte,
                                              HMAC_OUTPUT_LENGTH);
 
 
-    // 将后一个节点的 PVF 放到布隆过滤器之中去
+    // 将这个 PVF 放到布隆过滤器之中去
     push_element_into_bloom_filter(pvs->bloom_filter, next_pvf, PVF_LENGTH);
 
     // 进行所有的节点的遍历
-    for (index = 1; index < rte->path_length -  1; index++) {
+    for (index = 1; index < rte->path_length - 1; index++) {
         // 拿到 session key
         unsigned char *session_key = pvss->session_keys[index]; // session_key 会话密钥
         // 进行拼接
@@ -147,52 +169,20 @@ static void fill_ppf_for_single_route(struct RoutingTableEntry *rte,
  * @param pvs 路径验证结构体
  * @param pvss session 结构体
  */
-static void fill_ppf_fields(struct SELiRHeader *selir_header,
-                            struct RoutingCalcRes *rcr,
+static void fill_ppf_fields(struct RoutingCalcRes *rcr,
                             struct PathValidationStructure *pvs,
                             struct PathValidationSockStructure *pvss,
-                            unsigned char *pvf_start_pointer) {
-    // 索引
-    int index;
-    // 计算静态字段的哈希
-    unsigned char *static_fields_hash = calculate_selir_hash(pvs->hash_api, selir_header);
-    // 获取 ppf 起始的指针
-    unsigned char *ppf_start_pointer = get_selir_ppf_start_pointer(selir_header);
-    // 进行所有的路由条目的遍历 (现在还是只能支持一个 destination)
-    // 循环进行每一条路由的处理, 但是这里只能处理一条路由, 后续可以进行更新
-    for (index = 0; index < rcr->number_of_routes; index++) {
-        // 拿到路由条目 -> 如果是第一条则对应的是 source->primary
-        struct RoutingTableEntry *rte = rcr->rtes[index];
-        // 处理单条路由的过程
-        // ---------------------------------------------------------------------------------------
-        fill_ppf_for_single_route(rte, pvs, pvss, pvf_start_pointer, static_fields_hash);
-        // ---------------------------------------------------------------------------------------
-    }
+                            unsigned char *ppf_start_pointer,
+                            unsigned char *pvf_start_pointer,
+                            unsigned char *static_fields_hash) {
+    // 这里还是进行单条路由的处理
+    struct RoutingTableEntry* rte = rcr->rtes[0];
+    // 处理单条路由
+    fill_ppf_for_single_route(rte, pvs, pvss, pvf_start_pointer, static_fields_hash);
     // 将 bf 复制到 ppf 的位置
     memcpy(ppf_start_pointer, pvs->bloom_filter->bitset, pvs->bloom_filter->bf_effective_bytes);
     // 进行 bf 的重置
     reset_bloom_filter(pvs->bloom_filter);
-    // 在最后进行静态哈希的释放
-    kfree(static_fields_hash);
-}
-
-/**
- * 进行目的的填充
- * @param selir_header selir 头部
- * @param ppf_length ppf 长度
- * @param user_space_info 用户空间信息
- */
-static void fill_destination_fields(struct SELiRHeader *selir_header,
-                                    int ppf_length,
-                                    struct UserSpaceInfo *user_space_info) {
-    // 索引
-    int index;
-    // 获取指向目的的指针
-    unsigned char *destination_start_pointer = get_selir_dest_start_pointer(selir_header, ppf_length);
-    // 进行填充
-    for (index = 0; index < user_space_info->number_of_destinations; index++) {
-        destination_start_pointer[index] = user_space_info->destinations[index];
-    }
 }
 
 
@@ -277,19 +267,17 @@ struct sk_buff *self_defined__selir_make_skb(struct sock *sk, struct flowi4 *fl4
     fill_meta_data(selir_header, static_fields_hash, pvss->session_id, pvss->timestamp);
     // 3. 填充 pvf 字段
     unsigned char *pvf_start_pointer = get_selir_pvf_start_pointer(selir_header);
+    unsigned char* ppf_start_pointer = get_selir_ppf_start_pointer(selir_header);
     u64 start_time = ktime_get_real_ns();
     fill_pvf_fields(pvs->hmac_api,
                     pvf_start_pointer,
                     static_fields_hash,
                     pvss->session_keys[rcr->rtes[0]->path_length - 1]);
     // 4. 填充 ppf 字段
-    fill_ppf_fields(selir_header, rcr, pvs, pvss, pvf_start_pointer);
+    fill_ppf_fields(rcr, pvs, pvss, ppf_start_pointer, pvf_start_pointer, static_fields_hash);
     *encryption_time_elapsed = ktime_get_real_ns() - start_time;
-
-    // 5. 填充目的字段
-    fill_destination_fields(selir_header,
-                            pvs->bloom_filter->bf_effective_bytes,
-                            rcr->user_space_info);
+    // 5. 在最后进行静态哈希的释放
+    kfree(static_fields_hash);
     // ---------------------------------------------------------------------------------------
     // 等待一切就绪之后计算 selir_send_check
     selir_send_check(selir_header);
